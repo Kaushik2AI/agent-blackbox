@@ -1,0 +1,43 @@
+# User stories → acceptance tests, and MVP boundary
+
+## User-story matrix
+
+| # | User story (blueprint §1) | Acceptance test(s) | Milestone | Status |
+|---|---|---|---|---|
+| — | Platform is up and honest about its health | `test_healthz_is_dependency_free`, `test_readyz_reports_real_failures` (503 when deps down, no secrets in body), `test_readyz_ready_when_services_up_and_migrated`, web `checkConnectivity` unit tests + live smoke through Next.js proxy | M1 | ✅ |
+| — | Schema is real and migratable | `test_migration_creates_expected_tables`, `test_foreign_keys_are_enforced`, `test_execution_cannot_be_its_own_parent`, `test_downgrade_then_upgrade_is_clean` | M1 | ✅ |
+| — | Background jobs actually run | `test_rq_job_round_trip` (real Redis + RQ worker) | M1 | ✅ |
+| 1 | Register an instrumented app and see completed/failed runs | Ingest a real M2 run → rows in executions/spans/events; duplicate batch creates no new rows; unknown `schema_version` → 422 | M3 | 🚧 |
+| 2 | Inspect DAG/timeline of a run | Playwright: open the invalid-inventory run, click the failing `lookup_inventory` span, see `SKU_REQUIRED` and redacted args | M4 | 🚧 |
+| 3 | See evidence-backed failure flags | Each detector fires on its labelled fixture with correct `evidence_event_ids`; precision/recall computed from labelled set | M5 | 🚧 |
+| 4 | Save/fetch pre-step checkpoints and replay | Checkpoint hash mismatch → ineligible; replay creates new execution with parent link; source unchanged | M6 | 🚧 |
+| 5 | Apply one explicit intervention | Invalid intervention (schema fail / target before checkpoint) → 422; valid `replace_tool_argument` on SKU → verifier-confirmed success | M6 | 🚧 |
+| 6 | Compare original vs replay | Comparison API returns intervention record, path diff, verifier outcomes, calls/latency; Playwright flagship flow passes | M7 | 🚧 |
+| 7 | Run a fixed benchmark and export evidence | One command regenerates JSONL/CSV + charts; metric-math regression tests | M8 | 🚧 |
+| — | Run real model on SCC GPU | `qsub` script lints; manifest has job ID/model revision/seed; importer dedupes | M9 | 🚧 |
+
+## Milestone exit gates
+
+| Milestone | Gate (must be demonstrated, not claimed) |
+|---|---|
+| M0 | Docs consistent with blueprint scope; replay levels, privacy and limitations explicit; every later milestone has a testable exit |
+| M1 | Fresh setup (`make setup-scc` or compose) starts; `/readyz` ready; migrations apply; `make check` passes |
+| M2 | 3 fixtures (success, invalid SKU argument, transient timeout) give expected verifier results 10/10 times in stub mode |
+| M3 | Agent run persists correct, deduplicated trace rows; redaction tests pass |
+| M4 | Real failed run opened in UI; exact failing span clickable; no hardcoded data |
+| M5 | Findings link to raw events; confusion matrix reproducible from labelled fixtures |
+| M6 | Real resumed execution on a fork; source byte-identical at domain level; sandbox tests pass |
+| M7 | Flagship browser demo end-to-end with real worker |
+| M8 | One documented command rebuilds benchmark artifacts and charts |
+| M9 | SCC job submitted on a GPU and imported, or unverified parts documented |
+| M10 | Fresh-clone quickstart works; CI green; demo script matches the live app |
+
+## MVP boundary
+
+**In MVP (M0–M7):** one sandboxed customer-support agent, deterministic stub model,
+3–10 fixtures, metadata-only capture with redaction, five rule detectors, checkpoint replay
+with `replace_tool_argument` and `replace_tool_result`, Replay Studio + comparison view.
+
+**Not in MVP:** real LLM inference (M9), 30–60 case benchmark and statistics (M8),
+retrieval/prompt/state interventions (v1+), authentication beyond local dev (M10),
+multi-tenant hosting, Kubernetes, arbitrary-framework replay, automatic fixing.

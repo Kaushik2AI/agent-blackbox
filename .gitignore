@@ -1,0 +1,26 @@
+# secrets & local state
+.env
+.env.*
+!.env.example
+.local-data/
+artifacts/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# node / next
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store

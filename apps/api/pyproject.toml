@@ -1,0 +1,49 @@
+[project]
+name = "agent-blackbox-api"
+version = "0.1.0"
+description = "Agent BlackBox API: ingestion, run store, replay orchestration (M1: health + schema only)"
+requires-python = ">=3.11"
+# Exact pins: verified to install together on Python 3.11-3.13 (2026-10-14).
+dependencies = [
+  "fastapi==0.143.1",
+  "uvicorn[standard]==0.54.0",
+  "pydantic-settings==2.16.0",
+  "sqlalchemy==2.1.4",
+  "alembic==1.20.0",
+  "psycopg[binary]==3.3.6",
+  "redis==8.1.0",
+  "rq==2.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==9.1.1",
+  "httpx==0.28.1",
+  "ruff==0.17.0",
+  "mypy==2.4.0",
+]
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: needs a running Postgres + Redis (see infra/scc or docker-compose)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101"]  # assert is fine in tests
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["migrations/"]

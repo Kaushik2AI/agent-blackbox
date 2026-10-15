@@ -1,0 +1,6 @@
+# Postgres, Redis and Node.js delivered as pip wheels, so the whole dev stack installs
+# into one Python venv with no conda, Docker or root. Wheels exist for Python 3.11/3.12
+# on Linux x86_64 (verified 2026-10-14).
+pgserver==0.1.4          # bundles PostgreSQL 16.2 binaries (pgserver/pginstall/bin)
+redislite==6.2.912183    # bundles redis-server / redis-cli 6.2.14
+nodejs-wheel==22.20.0    # node 22.20 + npm/npx console scripts
