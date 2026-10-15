@@ -1,10 +1,12 @@
 /**
- * Typed client for the FastAPI health endpoints.
+ * Typed client for the FastAPI backend (reached through the Next.js /backend proxy).
  *
- * Every result is derived from a real HTTP response. If the request fails, the UI gets
- * an explicit "unreachable" state with the reason; nothing defaults to success.
+ * Every value rendered by the dashboard comes from one of these calls. Failures surface
+ * as ApiError / an explicit "unreachable" state; nothing defaults to success or to
+ * placeholder data.
  */
 
+// ------------------------------------------------------------------ health (M1)
 export type CheckResult = { ok: boolean; latency_ms: number; detail: string };
 
 export type Readiness = {
@@ -81,12 +83,179 @@ export async function checkConnectivity(
       checkedAt,
     };
   } catch (err) {
-    const reason =
-      err instanceof Error
-        ? err.name === "AbortError"
-          ? `timed out after ${timeoutMs} ms`
-          : err.message
-        : String(err);
-    return { kind: "unreachable", reason, checkedAt };
+    return { kind: "unreachable", reason: describeError(err, timeoutMs), checkedAt };
   }
 }
+
+function describeError(err: unknown, timeoutMs: number): string {
+  if (err instanceof Error) {
+    return err.name === "AbortError" ? `timed out after ${timeoutMs} ms` : err.message;
+  }
+  return String(err);
+}
+
+// ------------------------------------------------------------------ data API (M3/M4)
+export type ExecutionStatus = "pending" | "running" | "succeeded" | "failed" | "aborted";
+
+export type AgentVersion = {
+  id: string;
+  agent: string;
+  git_sha: string;
+  config_hash: string;
+  model_name: string;
+};
+
+export type ExecutionSummary = {
+  id: string;
+  project: string;
+  task_id: string;
+  status: ExecutionStatus;
+  agent_version: AgentVersion;
+  parent_execution_id: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  duration_ms: number | null;
+  tool_calls: number;
+  error_codes: string[];
+  termination: string | null;
+  verifier_passed: boolean | null;
+};
+
+export type ExecutionPage = {
+  items: ExecutionSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type Artifact = {
+  uri: string;
+  sha256: string;
+  type: string;
+  byte_size: number | null;
+  capture_policy: string;
+};
+
+export type ExecutionDetail = ExecutionSummary & {
+  attributes: Record<string, unknown>;
+  artifacts: Artifact[];
+  span_count: number;
+  event_count: number;
+};
+
+export type SpanOut = {
+  span_id: string;
+  trace_id: string;
+  parent_span_id: string | null;
+  kind: string;
+  name: string;
+  status: string;
+  start_ms: number;
+  end_ms: number | null;
+  duration_ms: number | null;
+  attributes: Record<string, unknown>;
+};
+
+export type EventOut = {
+  event_id: string;
+  span_id: string | null;
+  sequence_no: number;
+  event_type: string;
+  timestamp: string;
+  operation: string | null;
+  tool_name: string | null;
+  status: string | null;
+  attributes: Record<string, unknown>;
+  payload: Record<string, unknown>;
+};
+
+export type Timeline = { execution_id: string; spans: SpanOut[]; events: EventOut[] };
+
+export type GraphNode = {
+  id: string;
+  kind: string;
+  name: string;
+  status: string;
+  order: number;
+  parent_span_id: string | null;
+  orphan: boolean;
+  duration_ms: number | null;
+  tool_name: string | null;
+  error_code: string | null;
+};
+
+export type GraphEdge = { id: string; source: string; target: string; kind: "parent" | "next" };
+
+export type Graph = { execution_id: string; nodes: GraphNode[]; edges: GraphEdge[] };
+
+export type Overview = {
+  total: number;
+  succeeded: number;
+  failed: number;
+  other: number;
+  success_rate: number | null;
+  median_duration_ms: number | null;
+  failure_tags: Record<string, number>;
+  by_task: Record<string, Record<string, number>>;
+  total_tokens: number | null;
+};
+
+export class ApiError extends Error {
+  constructor(
+    public status: number | null,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export async function apiGet<T>(
+  path: string,
+  params: Record<string, string | number | undefined | null> = {},
+  fetchImpl: FetchLike = fetch,
+  base: string = backendBase(),
+  timeoutMs = 10000,
+): Promise<T> {
+  const query = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+  }
+  const url = `${base}${path}${query.size ? `?${query}` : ""}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetchImpl(url, { signal: controller.signal, cache: "no-store" });
+  } catch (err) {
+    throw new ApiError(null, `Could not reach the API: ${describeError(err, timeoutMs)}`);
+  } finally {
+    clearTimeout(timer);
+  }
+  const isJson = (res.headers.get("content-type") ?? "").includes("application/json");
+  const body: unknown = isJson ? await res.json() : null;
+  if (!res.ok) {
+    const detail =
+      isJson && body && typeof body === "object" && "detail" in body
+        ? JSON.stringify((body as { detail: unknown }).detail)
+        : `HTTP ${res.status}`;
+    throw new ApiError(res.status, detail);
+  }
+  if (!isJson) throw new ApiError(res.status, `Expected JSON from ${path}; is the API running?`);
+  return body as T;
+}
+
+export const api = {
+  overview: (since?: string) => apiGet<Overview>("/api/v1/overview", { since }),
+  agentVersions: () => apiGet<AgentVersion[]>("/api/v1/agent-versions"),
+  executions: (filters: {
+    status?: string;
+    agent_version_id?: string;
+    since?: string;
+    limit?: number;
+    offset?: number;
+  }) => apiGet<ExecutionPage>("/api/v1/executions", filters),
+  execution: (id: string) => apiGet<ExecutionDetail>(`/api/v1/executions/${id}`),
+  timeline: (id: string) => apiGet<Timeline>(`/api/v1/executions/${id}/timeline`),
+  graph: (id: string) => apiGet<Graph>(`/api/v1/executions/${id}/graph`),
+};

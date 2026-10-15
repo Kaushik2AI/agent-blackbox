@@ -64,6 +64,7 @@ export PATH="$VENV/bin:$PATH"
 say "Installing API + Postgres/Redis/Node wheels (pip)"
 python -m pip install --quiet --upgrade pip
 python -m pip install --quiet -e "apps/api[dev]" -e "packages/agent_harness[dev]" \
+  -e "packages/blackbox_sdk[dev]" \
   -r infra/scc/requirements-local-services.txt
 
 say "Linking Postgres binaries into $VENV/bin"

@@ -4,6 +4,9 @@
 !.env.example
 .local-data/
 artifacts/
+.cache/
+test-results/
+playwright-report/
 
 # python
 __pycache__/

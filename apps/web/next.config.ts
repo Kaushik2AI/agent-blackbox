@@ -20,7 +20,19 @@ const nextConfig: NextConfig = {
   assetPrefix: publicPrefix || undefined,
   env: { NEXT_PUBLIC_BASE_PATH: publicPrefix },
   async rewrites() {
-    return [{ source: "/backend/:path*", destination: `${apiInternalUrl}/:path*` }];
+    const backend = { source: "/backend/:path*", destination: `${apiInternalUrl}/:path*` };
+    if (!publicPrefix) return [backend];
+    // Same build must also work when opened directly on the node (e.g. browser tests on
+    // 127.0.0.1): map prefixed URLs back onto the app's real routes.
+    return {
+      beforeFiles: [
+        { source: `${publicPrefix}/backend/:path*`, destination: `${apiInternalUrl}/:path*` },
+        { source: `${publicPrefix}/:path*`, destination: "/:path*" },
+        { source: publicPrefix, destination: "/" },
+      ],
+      afterFiles: [backend],
+      fallback: [],
+    };
   },
 };
 

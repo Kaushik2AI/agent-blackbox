@@ -11,10 +11,10 @@ Keys are UUIDs (v4) everywhere except OpenTelemetry `trace_id` (32 hex) and `spa
 | `agents` | ✅ M1 | id, project_id → projects, name | unique (project_id, name); FK cascade |
 | `agent_versions` | ✅ M1 | id, agent_id → agents, git_sha, config_hash, model_name | unique (agent_id, git_sha, config_hash) — immutable builds |
 | `executions` | ✅ M1 | id, project_id, agent_version_id, parent_execution_id → executions, status (enum), task_id, started_at, ended_at | index (project_id, started_at); FK RESTRICT on version and parent; CHECK not own parent |
-| `spans` | 🚧 M3 | id, execution_id, trace_id, span_id, parent_span_id, kind, name, status, start_ms, end_ms, attributes_json | unique (trace_id, span_id); parent may be missing (out-of-order tolerated) |
-| `events` | 🚧 M3 | id, execution_id, span_id, sequence_no, event_type, timestamp, payload_json, dedupe_key | unique dedupe_key (= event_id); index (execution_id, sequence_no) |
+| `spans` | ✅ M3 | id, execution_id, trace_id, span_id, parent_span_id, kind, name, status, start_ms, end_ms, attributes_json | unique (trace_id, span_id); parent may be missing (out-of-order tolerated) |
+| `events` | ✅ M3 | id, execution_id, span_id, sequence_no, event_type, timestamp, payload_json, dedupe_key | unique dedupe_key (= event_id); index (execution_id, sequence_no) |
 | `checkpoints` | 🚧 M6 | id, execution_id, step_index, node_id, state_artifact_uri, state_hash, replay_capability | unique (execution_id, step_index) |
-| `artifacts` | 🚧 M3/M6 | id, project_id, uri, sha256, type, byte_size, capture_policy | sha256 verified on read |
+| `artifacts` | ✅ M3/M6 | id, project_id, uri, sha256, type, byte_size, capture_policy | sha256 verified on read |
 | `replay_jobs` | 🚧 M6 | id, source_execution_id, checkpoint_id, fork_execution_id, intervention_json, sandbox_config_json, status, replay_mode, idempotency_key, requested_at | unique idempotency_key; index source_execution_id |
 | `analysis_findings` | 🚧 M5 | id, execution_id, category, severity, evidence_event_ids, explanation, detector_version, kind (`verified`/`hypothesis`) | index execution_id |
 | `evaluation_cases` | 🚧 M8 | id, dataset_name, input_json, expected_json, verifier_id, fixture_version, split | immutable |
@@ -24,7 +24,15 @@ Tables are added by the milestone that writes to them, through Alembic migration
 `apps/api/migrations/versions/0001_m1_base_schema.py` creates the ✅ rows above and is
 tested for upgrade → downgrade → upgrade.
 
-## 2. Event contract v1.0 (ingest, M3)
+## 2. Event contract v1.0 (ingest, M3 ✅)
+
+One request = one execution: `{schema_version, resource{project, agent, agent_version{git_sha,
+config_hash, model_name}, sdk}, execution{execution_id, task_id, status, started_at,
+ended_at, attributes}, spans[], events[], artifacts[]}`. Implemented in
+`apps/api/app/contracts.py`; projects, agents and agent versions are created on first sight
+(no auth yet — local development only). Limits: 2 MB per request (`413`), 32 KB per stored
+payload/attribute map (larger ones become `{_truncated, original_bytes, sha256}`), 10,000
+events and 5,000 spans per batch. Each event:
 
 ```json
 {

@@ -7,12 +7,12 @@
 ```mermaid
 flowchart LR
   subgraph Agent side
-    H[Demo agent<br/>LangGraph harness ✅M2] --> SDK[BlackBox SDK<br/>OTel-compatible 🚧M3]
+    H[Demo agent<br/>LangGraph harness ✅M2] --> SDK[BlackBox SDK<br/>OTel-compatible ✅M3]
   end
   subgraph Platform
-    W[Next.js web ✅M1<br/>status page] -- "/backend/* proxy" --> API[FastAPI ✅M1<br/>/healthz /readyz]
-    SDK -- "POST /api/v1/events:batch 🚧M3" --> API
-    API --> PG[(PostgreSQL ✅M1<br/>projects/agents/versions/executions)]
+    W[Next.js dashboard ✅M4<br/>overview · runs · inspector] -- "/backend/* proxy" --> API[FastAPI ✅M1-M4<br/>health · ingest · read APIs]
+    SDK -- "POST /api/v1/events:batch ✅M3" --> API
+    API --> PG[(PostgreSQL ✅<br/>runs · spans · events · artifacts)]
     API -- enqueue --> R[(Redis ✅M1)]
     R --> WK[RQ worker ✅M1<br/>selftest job only]
     WK --> RE[Replay engine 🚧M6]
@@ -72,9 +72,9 @@ stateDiagram-v2
 | # | Screen | Milestone | Data source | Must show | Empty / error state |
 |---|---|---|---|---|---|
 | 0 | **System status** | ✅ M1 | `/healthz`, `/readyz` | API env, Postgres migration head + latency, Redis PONG + latency, last-checked time | "API unreachable" with the real reason; "dependency not ready" with per-check detail |
-| 1 | **Overview** | M4 | executions aggregate API | total runs, success rate, top failure categories, median latency, token spend; filters (version/date/outcome/model) | "No runs yet — run `make seed-demo`" |
-| 2 | **Runs explorer** | M4 | `GET /api/v1/executions` | status, task, run ID, version, duration, cost estimate, failure tags; pagination; keyboard nav | no-match filter message; network error with retry |
-| 3 | **Execution inspector** | M4 | `/timeline`, `/graph` | React Flow DAG (zoom, clickable), ordered timeline, event inspector with **redacted** payloads, error + stack, parent/child spans | spans missing parents shown as orphans, not dropped |
+| 1 | **Overview** | ✅ M4 | executions aggregate API | total runs, success rate, top failure categories, median latency, token spend; filters (version/date/outcome/model) | "No runs yet — run `make seed-demo`" |
+| 2 | **Runs explorer** | ✅ M4 | `GET /api/v1/executions` | status, task, run ID, version, duration, cost estimate, failure tags; pagination; keyboard nav | no-match filter message; network error with retry |
+| 3 | **Execution inspector** | ✅ M4 | `/timeline`, `/graph` | React Flow DAG (zoom, clickable), ordered timeline, event inspector with **redacted** payloads, error + stack, parent/child spans | spans missing parents shown as orphans, not dropped |
 | 4 | **Findings panel** | M5 | `/findings` | category, severity, detector version, links to evidence events; LLM text badged **Hypothesis** | "No rule fired" (not "healthy") |
 | 5 | **Replay studio** | M7 | `/checkpoints`, `POST /replays`, `GET /replays/{id}` | only eligible checkpoints; one intervention (type, target call, schema-validated editor); sandbox badge; confirm dialog; async progress | replay button **disabled** with reason when no eligible checkpoint |
 | 6 | **Comparison** | M7 | `/replays/{id}/comparison` | side-by-side graphs, the exact intervention record, JSON diff, verifier outcome, latency/calls/tokens/cost; replay class (`deterministic` / `controlled_stochastic` / `best_effort`) | fork still running → progress; fork failed → shown honestly |
@@ -90,8 +90,8 @@ metrics, loading/empty/error states on every data view.
 flowchart TD
   M0[M0 Spec & repo ✅] --> M1[M1 Infra + health slice ✅]
   M1 --> M2[M2 Sandbox agent + fixtures + verifiers ✅]
-  M2 --> M3[M3 SDK + idempotent ingest]
-  M3 --> M4[M4 Trace UI]
+  M2 --> M3[M3 SDK + idempotent ingest ✅]
+  M3 --> M4[M4 Trace UI ✅]
   M3 --> M5[M5 Rule detectors + P/R]
   M2 --> M6[M6 Checkpoint replay engine]
   M3 --> M6

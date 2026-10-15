@@ -52,7 +52,7 @@ jobs:
 
       - name: Install
         run: |
-          python -m pip install -e "apps/api[dev]" -e "packages/agent_harness[dev]"
+          python -m pip install -e "apps/api[dev]" -e "packages/agent_harness[dev]" -e "packages/blackbox_sdk[dev]"
           cd apps/web && npm ci --no-audit --no-fund
 
       - name: Lint and typecheck
@@ -64,6 +64,9 @@ jobs:
       - name: Demo agent baselines (10 repeats)
         run: make demo
 
+      - name: SDK tests (span tree, redaction, exporters)
+        run: make test-sdk
+
       - name: API tests (unit + integration against real Postgres/Redis)
         run: make test-api
 
@@ -73,10 +76,15 @@ jobs:
       - name: Web production build
         run: make build-web
 
-      - name: Live smoke test (Next.js proxy -> FastAPI -> Postgres/Redis)
+      - name: Start stack, seed real runs, live smoke + browser tests
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
         run: |
           cd apps/api && python -m alembic upgrade head
           python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
           cd ../web && npx next start --hostname 127.0.0.1 --port 3000 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:3000/backend/healthz && break; sleep 1; done
-          cd "$GITHUB_WORKSPACE" && WEB_PORT=3000 make test-web-smoke
+          cd "$GITHUB_WORKSPACE"
+          WEB_PORT=3000 make test-web-smoke
+          cd apps/web && npx playwright install --with-deps chromium && cd "$GITHUB_WORKSPACE"
+          WEB_PORT=3000 make test-e2e

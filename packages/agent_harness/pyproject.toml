@@ -40,3 +40,6 @@ ignore = ["S101"]
 python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["agent_harness"]

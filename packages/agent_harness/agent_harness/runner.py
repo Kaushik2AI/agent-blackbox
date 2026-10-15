@@ -5,13 +5,13 @@ from __future__ import annotations
 import time
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel
 
 from agent_harness import __version__
 from agent_harness.fixtures import Termination, load_fixture
-from agent_harness.graph import build_graph, initial_state
+from agent_harness.graph import EventSink, build_graph, initial_state
 from agent_harness.model import Model, StubModel
 from agent_harness.sandbox import Sandbox
 from agent_harness.tools import TOOL_CONTRACT_VERSION
@@ -64,7 +64,13 @@ class RunResult(BaseModel):
         }
 
 
-def run_fixture(fixture_id: str, model: Model | None = None) -> RunResult:
+def run_fixture(
+    fixture_id: str,
+    model: Model | None = None,
+    on_event: EventSink | None = None,
+) -> RunResult:
+    """on_event receives every lifecycle event as it happens (the BlackBox SDK hooks in
+    here); it must not raise."""
     fixture = load_fixture(fixture_id)
     model = model or StubModel(fixture.model)
     sandbox = Sandbox.from_fixture(fixture.world, fixture.faults)
@@ -79,6 +85,8 @@ def run_fixture(fixture_id: str, model: Model | None = None) -> RunResult:
                 data=data,
             )
         )
+        if on_event is not None:
+            on_event(event_type, data)
 
     execution_id = str(uuid.uuid4())
     emit("agent_start", {"execution_id": execution_id, "fixture_id": fixture.fixture_id})
@@ -89,7 +97,7 @@ def run_fixture(fixture_id: str, model: Model | None = None) -> RunResult:
         {"recursion_limit": 4 * fixture.budget.max_tool_calls + 10},
     )
     elapsed = (time.perf_counter() - started) * 1000
-    termination = final["termination"] or "error"
+    termination = cast(Termination, final["termination"] or "error")
     result = verify(fixture, sandbox, final["tool_calls"])
     emit("agent_end", {"termination": termination, "verifier_passed": result.passed})
 

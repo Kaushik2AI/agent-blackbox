@@ -8,8 +8,8 @@
 | — | Schema is real and migratable | `test_migration_creates_expected_tables`, `test_foreign_keys_are_enforced`, `test_execution_cannot_be_its_own_parent`, `test_downgrade_then_upgrade_is_clean` | M1 | ✅ |
 | — | Background jobs actually run | `test_rq_job_round_trip` (real Redis + RQ worker) | M1 | ✅ |
 | — | A real agent produces reproducible successes and failures without a GPU | `test_every_fixture_matches_its_expected_baseline`, `test_invalid_argument_fixture_fails_for_the_intended_reason`, `test_transient_timeout_is_retried_and_recovers`, `test_runs_are_deterministic_over_10_repeats`, `test_no_network_access_during_any_run`, `test_runs_do_not_mutate_fixtures_or_share_sandbox_state` | M2 | ✅ |
-| 1 | Register an instrumented app and see completed/failed runs | Ingest a real M2 run → rows in executions/spans/events; duplicate batch creates no new rows; unknown `schema_version` → 422 | M3 | 🚧 |
-| 2 | Inspect DAG/timeline of a run | Playwright: open the invalid-inventory run, click the failing `lookup_inventory` span, see `SKU_REQUIRED` and redacted args | M4 | 🚧 |
+| 1 | Register an instrumented app and see completed/failed runs | `test_real_agent_run_is_persisted_with_correct_trace` (SQL-checked), `test_duplicate_batches_create_no_new_rows`, `test_out_of_order_batches_and_missing_parents`, `test_unknown_schema_version_is_rejected_and_nothing_stored`, `test_secrets_are_redacted_server_side_before_storage`, `test_provenance_is_recorded`, SDK `test_sdk.py` | M3 | ✅ |
+| 2 | Inspect DAG/timeline of a run | Playwright `e2e/inspector.spec.ts`: filter failed runs, open the invalid-inventory run with the keyboard, click the failing `lookup_inventory` node, see `SKU_REQUIRED`, `validation_error` and the `product_name` argument; API `test_detail_timeline_and_graph`, `test_graph_order_follows_execution_order` | M4 | ✅ |
 | 3 | See evidence-backed failure flags | Each detector fires on its labelled fixture with correct `evidence_event_ids`; precision/recall computed from labelled set | M5 | 🚧 |
 | 4 | Save/fetch pre-step checkpoints and replay | Checkpoint hash mismatch → ineligible; replay creates new execution with parent link; source unchanged | M6 | 🚧 |
 | 5 | Apply one explicit intervention | Invalid intervention (schema fail / target before checkpoint) → 422; valid `replace_tool_argument` on SKU → verifier-confirmed success | M6 | 🚧 |
@@ -24,8 +24,8 @@
 | M0 | Docs consistent with blueprint scope; replay levels, privacy and limitations explicit; every later milestone has a testable exit |
 | M1 | Fresh setup (`make setup-scc` or compose) starts; `/readyz` ready; migrations apply; `make check` passes |
 | M2 ✅ | 3 fixtures (success, invalid SKU argument, transient timeout) give expected verifier results 10/10 times in stub mode — delivered with 5 fixtures; `make demo`, `make test-harness` |
-| M3 | Agent run persists correct, deduplicated trace rows; redaction tests pass |
-| M4 | Real failed run opened in UI; exact failing span clickable; no hardcoded data |
+| M3 ✅ | Agent run persists correct, deduplicated trace rows; redaction tests pass — `make test-api`, `make test-sdk` |
+| M4 ✅ | Real failed run opened in UI; exact failing span clickable; no hardcoded data — `make test-e2e` (also verified through the SCC VS Code proxy path) |
 | M5 | Findings link to raw events; confusion matrix reproducible from labelled fixtures |
 | M6 | Real resumed execution on a fork; source byte-identical at domain level; sandbox tests pass |
 | M7 | Flagship browser demo end-to-end with real worker |

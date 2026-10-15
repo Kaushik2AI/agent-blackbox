@@ -109,3 +109,16 @@ source /projectnb/<project>/<you>/venvs/agent-blackbox/bin/activate   # prompt s
 
 The path is saved in `.env` (`BLACKBOX_VENV=...`), so every later `make` command and
 `make dev` use that venv automatically. Database data in `.local-data/` is unaffected.
+
+## Recording runs and browser tests (M3/M4)
+
+```bash
+make dev                      # terminal 1
+make seed-demo                # terminal 2: record all fixtures through the SDK -> ingest API
+make e2e-install              # once: download headless Chromium into .cache/ (~150 MB)
+make test-e2e                 # Playwright: open the failing run, click the failing span
+```
+
+`make test-e2e` targets `http://127.0.0.1:$WEB_PORT` on the same node, so it works in both
+direct and VS Code proxy modes. If Chromium will not start on SCC, set
+`E2E_CHROMIUM_PATH=/path/to/chrome` to use another Chromium build.

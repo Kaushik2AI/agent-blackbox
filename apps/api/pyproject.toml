@@ -47,3 +47,7 @@ python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
 exclude = ["migrations/"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+known-third-party = ["agent_harness", "blackbox_sdk"]
