@@ -1,0 +1,263 @@
+{
+  "contract_version": "1.0",
+  "error_codes": [
+    "INVALID_ARGUMENT",
+    "SKU_REQUIRED",
+    "ORDER_NOT_FOUND",
+    "SKU_NOT_FOUND",
+    "POLICY_NOT_FOUND",
+    "TIMEOUT",
+    "UNKNOWN_TOOL"
+  ],
+  "tools": {
+    "draft_response": {
+      "description": "Store a reply draft in the sandbox. Never sends anything.",
+      "input": {
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "minLength": 1,
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer_id",
+          "text"
+        ],
+        "title": "DraftResponseInput",
+        "type": "object"
+      },
+      "output": {
+        "additionalProperties": false,
+        "properties": {
+          "draft_id": {
+            "title": "Draft Id",
+            "type": "string"
+          },
+          "stored": {
+            "const": "sandbox",
+            "default": "sandbox",
+            "title": "Stored",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draft_id"
+        ],
+        "title": "DraftResponseOutput",
+        "type": "object"
+      },
+      "side_effect": "sandbox_write"
+    },
+    "get_policy": {
+      "description": "Refund/exchange policy text.",
+      "input": {
+        "additionalProperties": false,
+        "properties": {
+          "policy_key": {
+            "enum": [
+              "exchange",
+              "refund"
+            ],
+            "title": "Policy Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "policy_key"
+        ],
+        "title": "GetPolicyInput",
+        "type": "object"
+      },
+      "output": {
+        "additionalProperties": false,
+        "properties": {
+          "policy_key": {
+            "title": "Policy Key",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "policy_key",
+          "text",
+          "version"
+        ],
+        "title": "GetPolicyOutput",
+        "type": "object"
+      },
+      "side_effect": "none"
+    },
+    "lookup_inventory": {
+      "description": "Availability for one SKU.",
+      "input": {
+        "additionalProperties": false,
+        "properties": {
+          "sku": {
+            "description": "Stock keeping unit, e.g. SKU-RED-004",
+            "pattern": "^SKU-[A-Z0-9-]+$",
+            "title": "Sku",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku"
+        ],
+        "title": "LookupInventoryInput",
+        "type": "object"
+      },
+      "output": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "description": "Fixture timestamp of the inventory snapshot (ISO 8601)",
+            "title": "As Of",
+            "type": "string"
+          },
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "quantity": {
+            "minimum": 0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku",
+          "available",
+          "quantity",
+          "as_of"
+        ],
+        "title": "LookupInventoryOutput",
+        "type": "object"
+      },
+      "side_effect": "none"
+    },
+    "lookup_order": {
+      "description": "Fetch an order: SKU, product, shipping.",
+      "input": {
+        "additionalProperties": false,
+        "properties": {
+          "order_id": {
+            "pattern": "^ORD-[0-9]+$",
+            "title": "Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id"
+        ],
+        "title": "LookupOrderInput",
+        "type": "object"
+      },
+      "output": {
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "shipping_status": {
+            "enum": [
+              "processing",
+              "shipped",
+              "delivered"
+            ],
+            "title": "Shipping Status",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "customer_id",
+          "sku",
+          "product_name",
+          "shipping_status"
+        ],
+        "title": "LookupOrderOutput",
+        "type": "object"
+      },
+      "side_effect": "none"
+    },
+    "submit_resolution": {
+      "description": "Record a resolution in the sandbox.",
+      "input": {
+        "additionalProperties": false,
+        "properties": {
+          "choice": {
+            "enum": [
+              "exchange",
+              "refund"
+            ],
+            "title": "Choice",
+            "type": "string"
+          },
+          "order_id": {
+            "pattern": "^ORD-[0-9]+$",
+            "title": "Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "choice"
+        ],
+        "title": "SubmitResolutionInput",
+        "type": "object"
+      },
+      "output": {
+        "additionalProperties": false,
+        "properties": {
+          "resolution_id": {
+            "title": "Resolution Id",
+            "type": "string"
+          },
+          "stored": {
+            "const": "sandbox",
+            "default": "sandbox",
+            "title": "Stored",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resolution_id"
+        ],
+        "title": "SubmitResolutionOutput",
+        "type": "object"
+      },
+      "side_effect": "sandbox_write"
+    }
+  }
+}

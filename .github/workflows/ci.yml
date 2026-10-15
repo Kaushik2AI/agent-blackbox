@@ -52,11 +52,17 @@ jobs:
 
       - name: Install
         run: |
-          python -m pip install -e "apps/api[dev]"
+          python -m pip install -e "apps/api[dev]" -e "packages/agent_harness[dev]"
           cd apps/web && npm ci --no-audit --no-fund
 
       - name: Lint and typecheck
         run: make lint
+
+      - name: Demo agent tests (fixtures, verifiers, determinism, no-network)
+        run: make test-harness
+
+      - name: Demo agent baselines (10 repeats)
+        run: make demo
 
       - name: API tests (unit + integration against real Postgres/Redis)
         run: make test-api

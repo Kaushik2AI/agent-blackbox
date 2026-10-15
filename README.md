@@ -5,11 +5,11 @@ Inspect every step of an agent run, fork from a saved checkpoint, change one con
 safely, replay the rest in a sandbox, and compare the outcome against a ground-truth
 verifier.
 
-> **Project status: M1 of 11 (early).** What works today is the foundation: a typed
-> FastAPI service with real health/readiness checks, a PostgreSQL schema under Alembic
-> migrations, a Redis/RQ job queue, and a Next.js status page that shows live
-> connectivity. Tracing, the trace inspector, failure analysis and replay are
-> **specified but not built yet** — see the roadmap below. Nothing in this README
+> **Project status: M2 of 11 (early).** What works today: a typed FastAPI service with
+> real health/readiness checks, a PostgreSQL schema under Alembic migrations, a Redis/RQ
+> job queue, a Next.js status page with live connectivity, and a **sandboxed LangGraph
+> support agent** with five fixtures and ground-truth verifiers. Tracing, the trace
+> inspector, failure analysis and replay are **specified but not built yet** — see the roadmap below. Nothing in this README
 > describes a feature that does not run.
 
 ## Why this exists
@@ -27,8 +27,8 @@ verifiers.
 |---|---|---|
 | M0 | Specification: architecture, replay contract, data model, threat model, acceptance matrix | ✅ |
 | M1 | Postgres + Redis + RQ, FastAPI `/healthz` `/readyz`, Alembic schema, Next.js status page, CI, SCC/no-Docker setup | ✅ |
-| M2 | Sandboxed customer-support agent (LangGraph, stub model) with 3 fixtures and verifiers | ⏳ next |
-| M3 | Python SDK (OTel-compatible) + idempotent, redacting event ingestion | ⏳ |
+| M2 | Sandboxed customer-support agent (LangGraph, stub model) with 5 fixtures and verifiers | ✅ |
+| M3 | Python SDK (OTel-compatible) + idempotent, redacting event ingestion | ⏳ next |
 | M4 | Execution inspector: runs list, React Flow graph, timeline, event inspector | ⏳ |
 | M5 | Rule-based failure detectors with evidence links and measured precision/recall | ⏳ |
 | M6 | Checkpoint replay engine: isolated forks, one validated intervention | ⏳ |
@@ -61,6 +61,25 @@ page turns amber with the real error within 5 seconds.
 
 Full instructions, cleanup and troubleshooting: [`docs/developer-runbook.md`](docs/developer-runbook.md).
 
+## The demo agent
+
+```bash
+make demo        # all 5 fixtures x10, each compared with its expected baseline
+make demo-fail   # the flagship failure: product_name passed instead of sku
+```
+
+```
+fixture                        verifier  termination       errors           baseline
+exchange_success               pass      completed         -                match x10
+invalid_inventory_argument     fail      budget_exhausted  SKU_REQUIRED     match x10
+persistent_inventory_timeout   fail      tool_failure      TIMEOUT          match x10
+refund_out_of_stock            pass      completed         -                match x10
+transient_inventory_timeout    pass      completed         TIMEOUT          match x10
+```
+
+(Output of `make demo` with the deterministic stub model; details in
+[`packages/agent_harness/README.md`](packages/agent_harness/README.md).)
+
 ## Checks
 
 ```bash
@@ -68,9 +87,11 @@ make check            # ruff + mypy --strict + tsc, API tests, web tests, produc
 make test-web-smoke   # with `make dev` running: browser path -> Next.js -> FastAPI -> deps
 ```
 
-M1 test inventory: 10 API tests (health, readiness failure reporting without secret
-leakage, migrations up/down, foreign keys, fork self-parent check, real RQ job round
-trip, config parsing) and 5 web tests (4 unit, 1 live smoke).
+Test inventory: 31 demo-agent tests (tool contracts and error codes, fault injection,
+every fixture vs. baseline, failure-reason checks, 10x determinism, per-run isolation,
+no-network guard, contract drift), 10 API tests (health, readiness failure reporting
+without secret leakage, migrations up/down, foreign keys, fork self-parent check, real RQ
+job round trip, config parsing) and 5 web tests (4 unit, 1 live smoke).
 
 ## Architecture
 

@@ -17,6 +17,7 @@ endif
 
 API := apps/api
 WEB := apps/web
+HARNESS := packages/agent_harness
 
 .PHONY: help
 help: ## Show this help
@@ -29,7 +30,7 @@ setup-scc: ## One-time setup on BU SCC / any Linux without Docker
 
 .PHONY: install
 install: ## Install deps into the CURRENT Python/Node (Docker/laptop path)
-	python -m pip install -e "$(API)[dev]"
+	python -m pip install -e "$(API)[dev]" -e "$(HARNESS)[dev]"
 	cd $(WEB) && npm ci --no-audit --no-fund
 
 # ---------------------------------------------------------------- services
@@ -56,14 +57,24 @@ migrate: ## Apply database migrations
 dev: ## Run API + worker + web together (Ctrl+C to stop)
 	bash scripts/dev.sh
 
+.PHONY: demo demo-fail
+demo: ## Run every demo-agent fixture 10x and compare with expected baselines
+	python -m agent_harness.run_demo --all --repeat 10
+demo-fail: ## Show the flagship failing run (invalid inventory argument)
+	-python -m agent_harness.run_demo --fixture invalid_inventory_argument
+
 # ---------------------------------------------------------------- quality
 .PHONY: lint
 lint: ## Ruff + mypy + TypeScript
 	cd $(API) && python -m ruff check . && python -m ruff format --check . && python -m mypy app
+	cd $(HARNESS) && python -m ruff check . && python -m ruff format --check . && python -m mypy agent_harness
 	cd $(WEB) && npx tsc --noEmit
 
-.PHONY: test test-api test-web test-web-smoke
-test: test-api test-web ## All tests that don't need the web server running
+.PHONY: test test-api test-harness test-web test-web-smoke
+test: test-harness test-api test-web ## All tests that don't need the web server running
+
+test-harness: ## Demo agent: tools, fixtures, verifiers, determinism (no services needed)
+	cd $(HARNESS) && python -m pytest -v
 
 test-api: ## API unit + integration tests (needs Postgres + Redis up)
 	cd $(API) && python -m pytest -v

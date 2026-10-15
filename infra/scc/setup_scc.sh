@@ -63,7 +63,8 @@ export PATH="$VENV/bin:$PATH"
 # ---------------------------------------------------------------- 2. python deps + services
 say "Installing API + Postgres/Redis/Node wheels (pip)"
 python -m pip install --quiet --upgrade pip
-python -m pip install --quiet -e "apps/api[dev]" -r infra/scc/requirements-local-services.txt
+python -m pip install --quiet -e "apps/api[dev]" -e "packages/agent_harness[dev]" \
+  -r infra/scc/requirements-local-services.txt
 
 say "Linking Postgres binaries into $VENV/bin"
 PG_BIN="$(python -c 'import pathlib, pgserver; print(pathlib.Path(pgserver.__file__).parent / "pginstall" / "bin")' 2>/dev/null)"

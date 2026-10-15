@@ -7,7 +7,7 @@
 ```mermaid
 flowchart LR
   subgraph Agent side
-    H[Demo agent<br/>LangGraph harness 🚧M2] --> SDK[BlackBox SDK<br/>OTel-compatible 🚧M3]
+    H[Demo agent<br/>LangGraph harness ✅M2] --> SDK[BlackBox SDK<br/>OTel-compatible 🚧M3]
   end
   subgraph Platform
     W[Next.js web ✅M1<br/>status page] -- "/backend/* proxy" --> API[FastAPI ✅M1<br/>/healthz /readyz]
@@ -89,7 +89,7 @@ metrics, loading/empty/error states on every data view.
 ```mermaid
 flowchart TD
   M0[M0 Spec & repo ✅] --> M1[M1 Infra + health slice ✅]
-  M1 --> M2[M2 Sandbox agent + 3 fixtures + verifiers]
+  M1 --> M2[M2 Sandbox agent + fixtures + verifiers ✅]
   M2 --> M3[M3 SDK + idempotent ingest]
   M3 --> M4[M4 Trace UI]
   M3 --> M5[M5 Rule detectors + P/R]

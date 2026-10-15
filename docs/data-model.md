@@ -57,10 +57,11 @@ Rules:
 - `operation` / attribute names follow the OpenTelemetry GenAI semantic conventions where a
   mapping exists; the adapter is versioned because those conventions are still evolving.
 
-## 3. Tool contracts (M2)
+## 3. Tool contracts (M2 ✅)
 
-Each simulated tool has a Pydantic input and output model exported as JSON Schema, plus
-explicit error codes. Example: `lookup_inventory(sku: str /^SKU-[A-Z0-9-]+$/)` →
+Each simulated tool has a Pydantic input and output model exported as JSON Schema in
+[`packages/contracts/tools.v1.json`](../packages/contracts/tools.v1.json) (a test fails if
+code and file drift), plus explicit error codes. Example: `lookup_inventory(sku: str /^SKU-[A-Z0-9-]+$/)` →
 `{sku, available, quantity, as_of}` or error `SKU_REQUIRED | SKU_NOT_FOUND | TIMEOUT`.
 
 ## 4. Privacy defaults

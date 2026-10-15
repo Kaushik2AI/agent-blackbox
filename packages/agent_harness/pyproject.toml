@@ -1,0 +1,42 @@
+[project]
+name = "agent-harness"
+version = "0.2.0"
+description = "Agent BlackBox demo agent: sandboxed customer-support agent (LangGraph) with fixtures and ground-truth verifiers"
+requires-python = ">=3.11"
+# Exact pins, verified together on Python 3.12 (2026-10-14).
+dependencies = [
+  "langgraph==1.2.15",
+  "pydantic==2.14.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "ruff==0.17.0", "mypy==2.4.0"]
+
+[project.scripts]
+blackbox-demo = "agent_harness.run_demo:main"
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["agent_harness*"]
+
+[tool.setuptools.package-data]
+agent_harness = ["fixtures/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
