@@ -1,0 +1,59 @@
+{
+  "fixture_id": "wrong_order_identity",
+  "fixture_version": "1.0.0",
+  "description": "Identity bug: the agent looks up ORD-1001 but records the resolution against ORD-1002.",
+  "task": {
+    "customer_id": "C-17",
+    "order_id": "ORD-1001",
+    "request": "exchange",
+    "message": "My red backpack arrived with a broken zip. Can I exchange it?"
+  },
+  "world": {
+    "orders": {
+      "ORD-1001": {
+        "customer_id": "C-17",
+        "sku": "SKU-RED-004",
+        "product_name": "red backpack",
+        "shipping_status": "delivered"
+      }
+    },
+    "inventory": {
+      "SKU-RED-004": {
+        "available": true,
+        "quantity": 12,
+        "as_of": "2026-10-01T09:00:00Z"
+      }
+    },
+    "policies": {
+      "exchange": {
+        "text": "Delivered items may be exchanged for the same SKU within 30 days if in stock.",
+        "version": "2026-09"
+      },
+      "refund": {
+        "text": "If an exchange is not possible, a full refund is issued within 30 days of delivery.",
+        "version": "2026-09"
+      }
+    }
+  },
+  "faults": {},
+  "model": {
+    "inventory_argument": "sku",
+    "max_retries_on_timeout": 2,
+    "resolution_order_id": "ORD-1002"
+  },
+  "budget": {
+    "max_tool_calls": 8
+  },
+  "ground_truth": {
+    "resolution": {
+      "order_id": "ORD-1001",
+      "choice": "exchange"
+    },
+    "draft_customer_id": "C-17"
+  },
+  "expected_baseline": {
+    "verifier_passed": false,
+    "termination": "completed",
+    "error_codes": []
+  }
+}

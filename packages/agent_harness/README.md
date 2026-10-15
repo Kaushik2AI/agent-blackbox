@@ -22,6 +22,8 @@ python -m agent_harness.run_demo --all --repeat 10      # every fixture vs. its 
 | `verifier.py` | Ground-truth verifier: checks the final sandbox against the fixture's `ground_truth`. Never trusts the model. |
 | `fixtures/*.json` | Versioned tasks (world, faults, model script, budget, ground truth, expected baseline). |
 | `run_demo.py` | CLI. |
+| `interventions.py` (M6) | `ReplaceToolArguments` / `ReplaceToolResult`, validated against the tool contracts. |
+| `runner.run_from_checkpoint` (M6) | Resume a pre-step checkpoint in a new execution with an independent sandbox copy; re-executes the suffix for real. |
 
 ## Fixtures (v1.0.0)
 
@@ -32,6 +34,7 @@ python -m agent_harness.run_demo --all --repeat 10      # every fixture vs. its 
 | `invalid_inventory_argument` | **Flagship failure:** `product_name` passed instead of `sku`, same bad call repeated until the 8-call budget is gone | fail | budget_exhausted | SKU_REQUIRED |
 | `transient_inventory_timeout` | One injected timeout, retry recovers | pass | completed | TIMEOUT |
 | `persistent_inventory_timeout` | Timeouts outlast 2 retries, agent gives up | fail | tool_failure | TIMEOUT |
+| `wrong_order_identity` | Identity bug: looks up ORD-1001, resolves ORD-1002 | fail | completed | – |
 
 These rows are what `--all` checks on every run (and CI checks 10× per fixture).
 

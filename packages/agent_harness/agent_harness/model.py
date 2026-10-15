@@ -8,6 +8,7 @@ fixture is fully determined by the fixture's `model` script:
   * inventory_argument="product_name"  -> calls lookup_inventory(product_name=...), the
                                           flagship bug, and naively repeats failed calls
   * max_retries_on_timeout             -> how many times a TIMEOUT is retried
+  * resolution_order_id                -> submit the resolution for this (wrong) order id
 
 A real LLM adapter (M9) implements the same `Model` protocol.
 """
@@ -74,7 +75,10 @@ class StubModel:
                 {"customer_id": task["customer_id"], "text": _draft_text(order, choice)},
             )
         if "resolution_id" not in obs:
-            return ToolCall("submit_resolution", {"order_id": order["order_id"], "choice": choice})
+            # resolution_order_id simulates an identity bug: the model "remembers" the wrong
+            # order between steps (see the wrong_order_identity fixture).
+            order_id = self.script.resolution_order_id or order["order_id"]
+            return ToolCall("submit_resolution", {"order_id": order_id, "choice": choice})
         return Finish("completed")
 
     def _after_failure(self, history: list[dict[str, Any]]) -> Action:

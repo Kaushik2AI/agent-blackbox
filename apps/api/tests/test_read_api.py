@@ -60,7 +60,11 @@ def test_detail_timeline_and_graph(client: TestClient) -> None:
     eid = seed(client, "invalid_inventory_argument")
     detail = client.get(f"/api/v1/executions/{eid}").json()
     assert detail["span_count"] == 18 and detail["event_count"] == 28
-    assert {a["type"] for a in detail["artifacts"]} == {"fixture", "sandbox_state"}
+    assert {a["type"] for a in detail["artifacts"]} == {
+        "fixture",
+        "sandbox_state",
+        "checkpoint_state",
+    }
 
     timeline = client.get(f"/api/v1/executions/{eid}/timeline").json()
     assert [e["sequence_no"] for e in timeline["events"]] == list(range(28))

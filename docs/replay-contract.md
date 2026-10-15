@@ -1,5 +1,9 @@
 # Replay contract
 
+> Implemented in M6/M7 (`packages/agent_harness` resume + interventions,
+> `apps/api/app/services/replay.py` orchestration, Replay Studio UI). Notes on what the
+> implementation does are marked **Implemented:**.
+
 This document defines what Agent BlackBox means by "replay". Anything that does not meet
 these rules must not be labelled replay in code, API or UI.
 
@@ -79,6 +83,15 @@ never "replay".
 | v2 | `patch_agent_state` | Schema-validated state change with before/after diff |
 
 Exactly **one** intervention per fork. Multiple changes = multiple forks.
+
+**Implemented:** `replace_tool_argument` accepts either the full `arguments` object or a
+`field`/`value` edit (with optional `remove_fields`) applied to the recorded arguments; the
+resolved arguments must validate against the tool's input contract (`extra` fields
+forbidden). `replace_tool_result` must validate against the output contract. The target
+must be a tool span at or after the checkpoint's call. `controlled_stochastic` requests are
+rejected with an explanation until a real model adapter exists (M9). Fork traces contain
+only the re-executed suffix plus a `replay_start` event; the comparison marks earlier steps
+as inherited.
 
 ## 6. Side-effect isolation
 

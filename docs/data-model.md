@@ -13,10 +13,10 @@ Keys are UUIDs (v4) everywhere except OpenTelemetry `trace_id` (32 hex) and `spa
 | `executions` | ✅ M1 | id, project_id, agent_version_id, parent_execution_id → executions, status (enum), task_id, started_at, ended_at | index (project_id, started_at); FK RESTRICT on version and parent; CHECK not own parent |
 | `spans` | ✅ M3 | id, execution_id, trace_id, span_id, parent_span_id, kind, name, status, start_ms, end_ms, attributes_json | unique (trace_id, span_id); parent may be missing (out-of-order tolerated) |
 | `events` | ✅ M3 | id, execution_id, span_id, sequence_no, event_type, timestamp, payload_json, dedupe_key | unique dedupe_key (= event_id); index (execution_id, sequence_no) |
-| `checkpoints` | 🚧 M6 | id, execution_id, step_index, node_id, state_artifact_uri, state_hash, replay_capability | unique (execution_id, step_index) |
+| `checkpoints` | ✅ M6 | id, execution_id, step_index, node_id, state_artifact_uri, state_hash, replay_capability | unique (execution_id, step_index) |
 | `artifacts` | ✅ M3/M6 | id, project_id, uri, sha256, type, byte_size, capture_policy | sha256 verified on read |
-| `replay_jobs` | 🚧 M6 | id, source_execution_id, checkpoint_id, fork_execution_id, intervention_json, sandbox_config_json, status, replay_mode, idempotency_key, requested_at | unique idempotency_key; index source_execution_id |
-| `analysis_findings` | 🚧 M5 | id, execution_id, category, severity, evidence_event_ids, explanation, detector_version, kind (`verified`/`hypothesis`) | index execution_id |
+| `replay_jobs` | ✅ M6 | id, source_execution_id, checkpoint_id, fork_execution_id, intervention_json, sandbox_config_json, status, replay_mode, idempotency_key, requested_at | unique idempotency_key; index source_execution_id |
+| `analysis_findings` | ✅ M5 | id, execution_id, category, severity, evidence_event_ids, explanation, detector_version, kind (`verified`/`hypothesis`) | index execution_id |
 | `evaluation_cases` | 🚧 M8 | id, dataset_name, input_json, expected_json, verifier_id, fixture_version, split | immutable |
 | `evaluation_results` | 🚧 M8 | id, case_id, execution_id, ground_truth_success, metrics_json | — |
 
@@ -64,6 +64,21 @@ Rules:
   `413`).
 - `operation` / attribute names follow the OpenTelemetry GenAI semantic conventions where a
   mapping exists; the adapter is versioned because those conventions are still evolving.
+
+### Checkpoints in the batch (M6)
+
+`checkpoints[]`: `{checkpoint_id, step_index, node_id, target_span_id, state_sha256, state}`.
+`state` (the full pre-step graph state + sandbox snapshot) is sent only by content-capture
+runs. The server stores it (as `artifact://checkpoints/<execution>/<checkpoint>.json`) only
+if it hashes to `state_sha256` and contains nothing secret-shaped; otherwise the row keeps
+the hash with `replay_capability` = `metadata_only`, `rejected_hash_mismatch` or
+`rejected_secrets`.
+
+### Identity fingerprints (M5)
+
+Tool events carry `payload.identity` / `payload.output_identity`: HMAC-SHA256 fingerprints
+(per-execution random salt) of `order_id`, `sku`, `customer_id`. They allow the identity
+detector to compare IDs across steps of one run without storing the IDs.
 
 ## 3. Tool contracts (M2 ✅)
 

@@ -19,6 +19,7 @@ API := apps/api
 WEB := apps/web
 HARNESS := packages/agent_harness
 SDK := packages/blackbox_sdk
+ANALYSIS := packages/analysis_engine
 # Playwright browsers live in the repo (not $HOME) so they count against project quota.
 export PLAYWRIGHT_BROWSERS_PATH ?= $(CURDIR)/.cache/ms-playwright
 
@@ -33,7 +34,7 @@ setup-scc: ## One-time setup on BU SCC / any Linux without Docker
 
 .PHONY: install
 install: ## Install deps into the CURRENT Python/Node (Docker/laptop path)
-	python -m pip install -e "$(API)[dev]" -e "$(HARNESS)[dev]" -e "$(SDK)[dev]"
+	python -m pip install -e "$(API)[dev]" -e "$(HARNESS)[dev]" -e "$(SDK)[dev]" -e "$(ANALYSIS)[dev]"
 	cd $(WEB) && npm ci --no-audit --no-fund
 
 # ---------------------------------------------------------------- services
@@ -76,10 +77,18 @@ lint: ## Ruff + mypy + TypeScript
 	cd $(API) && python -m ruff check . && python -m ruff format --check . && python -m mypy app
 	cd $(HARNESS) && python -m ruff check . && python -m ruff format --check . && python -m mypy agent_harness
 	cd $(SDK) && python -m ruff check . && python -m ruff format --check . && python -m mypy blackbox_sdk
+	cd $(ANALYSIS) && python -m ruff check . && python -m ruff format --check . && python -m mypy analysis_engine
 	cd $(WEB) && npx tsc --noEmit
 
-.PHONY: test test-api test-harness test-sdk test-web test-web-smoke test-e2e e2e-install
-test: test-harness test-sdk test-api test-web ## All tests that don't need the web server running
+.PHONY: test test-api test-harness test-sdk test-analysis test-web test-web-smoke test-e2e e2e-install eval-detectors
+test: test-harness test-sdk test-analysis test-api test-web ## All tests that don't need the web server running
+
+test-analysis: ## Failure detectors: behaviour, metric math, labelled evaluation
+	cd $(ANALYSIS) && python -m pytest -v
+
+eval-detectors: ## Precision/recall of the detectors on labelled fixtures -> artifacts/analysis/
+	mkdir -p artifacts/analysis
+	python -m analysis_engine.evaluation --out artifacts/analysis/detector_eval.json
 
 test-sdk: ## SDK: span tree, redaction, exporters (no services needed)
 	cd $(SDK) && python -m pytest -v
@@ -101,6 +110,7 @@ e2e-install: ## One-time: download the headless Chromium used by browser tests
 
 test-e2e: ## Browser tests (run while `make dev` is up): seeds real runs, then Playwright
 	python -m blackbox_sdk.seed_demo --capture-content --fixtures invalid_inventory_argument,exchange_success
+	python -m blackbox_sdk.seed_demo --fixtures invalid_inventory_argument
 	cd $(WEB) && E2E_BASE_URL=http://127.0.0.1:$${WEB_PORT:-3000}/ npx playwright test
 
 .PHONY: build-web

@@ -140,6 +140,7 @@ export function RunsExplorer() {
                     <td className="px-4 py-2.5"><StatusBadge status={r.status} /></td>
                     <td className="px-2 py-2.5 font-mono text-xs">
                       <a href={href(`/runs/${r.id}`)} onClick={(e) => e.stopPropagation()} className="hover:underline">{r.task_id}</a>
+                      {r.parent_execution_id && <span className="ml-2 rounded border border-warn/50 px-1 text-[10px] text-warn" title={`fork of ${r.parent_execution_id}`}>fork</span>}
                     </td>
                     <td className="px-2 py-2.5 font-mono text-xs text-muted" title={r.id}>{shortId(r.id)}</td>
                     <td className="px-2 py-2.5 font-mono text-xs text-muted">{r.agent_version.git_sha.slice(0, 7)}</td>

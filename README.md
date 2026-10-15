@@ -5,13 +5,14 @@ Inspect every step of an agent run, fork from a saved checkpoint, change one con
 safely, replay the rest in a sandbox, and compare the outcome against a ground-truth
 verifier.
 
-> **Project status: M4 of 11.** What works today: a **sandboxed LangGraph support agent**
-> with five fixtures and ground-truth verifiers; a **Python SDK** that records each run as
-> OpenTelemetry-style spans and events (metadata-only by default, secrets redacted); an
-> **idempotent ingest API** that stores them in PostgreSQL; and a **dark dashboard**
-> (overview, runs explorer, execution inspector with a clickable step graph) that shows
-> only real recorded data. Failure analysis and replay are **specified but not built yet** — see the roadmap below. Nothing in this README
-> describes a feature that does not run.
+> **Project status: M7 of 11 — MVP complete.** A sandboxed LangGraph support agent with
+> six fixtures and ground-truth verifiers; a Python SDK that records every run as
+> OpenTelemetry-style spans/events plus pre-step checkpoints; an idempotent, redacting
+> ingest API; five rule-based failure detectors that cite their evidence; a replay engine
+> that resumes a checkpoint as a **new** execution in a network-blocked sandbox with exactly
+> one validated intervention; and a dashboard with an execution inspector, Replay Studio
+> and original-vs-fork comparison. Benchmarking (M8), real-model runs on SCC (M9) and
+> hardening/auth (M10) are not built yet.
 
 ## Why this exists
 
@@ -31,10 +32,10 @@ verifiers.
 | M2 | Sandboxed customer-support agent (LangGraph, stub model) with 5 fixtures and verifiers | ✅ |
 | M3 | Python SDK (OTel-compatible) + idempotent, redacting event ingestion | ✅ |
 | M4 | Execution inspector: runs list, React Flow graph, timeline, event inspector | ✅ |
-| M5 | Rule-based failure detectors with evidence links and measured precision/recall | ⏳ next |
-| M6 | Checkpoint replay engine: isolated forks, one validated intervention | ⏳ |
-| M7 | Replay Studio + original-vs-fork comparison (MVP complete) | ⏳ |
-| M8 | Reproducible 30–60 case benchmark with baselines and CIs | ⏳ |
+| M5 | Rule-based failure detectors with evidence links and measured precision/recall | ✅ |
+| M6 | Checkpoint replay engine: isolated forks, one validated intervention | ✅ |
+| M7 | Replay Studio + original-vs-fork comparison (MVP complete) | ✅ |
+| M8 | Reproducible 30–60 case benchmark with baselines and CIs | ⏳ next |
 | M9 | BU SCC GPU batch evaluation (qsub) with an open-weight model | ⏳ |
 | M10 | Hardening, auth, docs, demo | ⏳ |
 
@@ -93,6 +94,45 @@ Open the web UI → **Runs** → `invalid_inventory_argument` → click the red
 `validation_error` type and the offending `product_name` argument. Every number and node
 on screen comes from rows written by the ingest API.
 
+## The flagship demo: fail → diagnose → fork → verified recovery
+
+1. **Runs** → `invalid_inventory_argument`. Findings at the top (all *verified*, each citing
+   event IDs): `tool_schema_mismatch`, `retry_loop`, `budget_exhausted`.
+2. **⑂ Replay Studio** → checkpoint *before call #1 · lookup_inventory* is pre-selected →
+   replace the arguments `{"product_name": "red backpack"}` with `{"sku": "SKU-RED-004"}` →
+   **Run replay** → confirm.
+3. The RQ worker restores the checkpoint into a **new** execution (parent = original),
+   blocks all network access, applies the one change and re-runs the remaining steps for
+   real. The ground-truth verifier passes.
+4. **Compare original vs fork**: the exact intervention record, step-by-step alignment
+   (first divergence at call #1), the final sandbox diff (a draft and an `exchange`
+   resolution now exist), both graphs, and an explicit causal-claim caveat. The original
+   run's rows are byte-for-byte unchanged (tested).
+
+The same flow runs as an automated browser test (`e2e/replay.spec.ts`).
+
+## Failure detectors (M5)
+
+```
+$ make eval-detectors
+detectors v1.0, labels v1.0, 6 fixtures (metadata-only traces)
+
+category                    TP  FP  FN  TN  precision  recall    F1
+tool_schema_mismatch         1   0   0   5       1.00    1.00  1.00
+retry_loop                   1   0   0   5       1.00    1.00  1.00
+tool_timeout                 1   0   0   5       1.00    1.00  1.00
+budget_exhausted             1   0   0   5       1.00    1.00  1.00
+state_identity_mismatch      1   0   0   5       1.00    1.00  1.00
+
+micro precision 1.00, micro recall 1.00
+Caveat: 6 hand-labelled fixtures written by the same team as the detectors; no held-out set yet (M8). Treat as a regression check, not a generalisation claim.
+```
+
+Those numbers are recomputed from scratch on every run (real agent → SDK in metadata-only
+mode → detectors → comparison with `packages/analysis_engine/analysis_engine/labels/v1.json`).
+Six fixtures is a regression check, not evidence of generalisation; M8 adds a larger,
+held-out benchmark.
+
 ## Checks
 
 ```bash
@@ -100,7 +140,12 @@ make check            # ruff + mypy --strict + tsc, API tests, web tests, produc
 make test-web-smoke   # with `make dev` running: browser path -> Next.js -> FastAPI -> deps
 ```
 
-Test inventory (M4): 3 Playwright browser tests (find and open the real failing run with
+Test inventory (M7): 5 Playwright browser tests (adds the full flagship replay flow and the
+disabled-replay case), 20 replay/findings API tests against real Postgres/Redis (fork
+immutability by row fingerprint, checkpoint hash tampering, six kinds of rejected
+interventions, metadata-only runs refused, idempotency keys, crash recovery of a half-written
+fork, blocked network access, independent forks, a real RQ worker), 11 harness replay
+tests, 9 detector tests, 3 new SDK tests. Earlier milestones: 3 Playwright browser tests (find and open the real failing run with
 the keyboard, click the failing span, see the error; overview matches the API; live
 readiness), 14 SDK tests (span tree, OTel-style IDs, ordering, metadata-only default,
 opt-in content, client-side redaction, retrying exporter, JSONL export), 46 API tests

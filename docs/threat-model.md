@@ -18,9 +18,9 @@ Public multi-tenant hosting is a **non-goal** for v1; anything needed before tha
 | Other users → our files | filesystem | `.env` mode 0600; data dir, socket dir, Redis dir mode 0700; Redis password in 0600 config, not argv | ✅ M1 |
 | Browser → API | HTTP via Next.js proxy | Only web port exposed to browser; CORS narrowed to web origin; readiness errors report exception class only (no connection strings) | ✅ M1 (tested) |
 | Instrumented agent → ingest API | `POST events:batch` | Schema validation, version rejection (`422`), size limits (`413`, payload truncation), redaction on the client AND again on the server before persistence, idempotency on event/span IDs | ✅ M3 (tested) |
-| API → replay worker | Redis job | Job args validated before enqueue; worker re-validates; allowlisted tools only | 🚧 M6 |
-| Replay worker → outside world | network | No network in sandbox; socket-level block asserted in tests | 🚧 M6 |
-| LLM hypothesis text → UI | rendering | Rendered as plain text, labelled *Hypothesis*, never executed | 🚧 M5 |
+| API → replay worker | Redis job | Only a job id crosses the queue; the intervention is validated against the tool contract before the job exists; the worker re-checks checkpoint integrity; allowlisted tools only | ✅ M6 (tested) |
+| Replay worker → outside world | network | `no_network()` patches socket connect/connect_ex/sendto/create_connection for the duration of the replay; an attempt fails the job and is counted as an isolation incident | ✅ M6 (tested) |
+| LLM hypothesis text → UI | rendering | Not implemented: no model writes findings; the `kind=hypothesis` slot is reserved and would be rendered as plain text | ⏸ reserved |
 | SCC batch output → DB | JSONL import | Schema validation, dedupe by run ID, reject secrets/tokens | 🚧 M9 |
 
 ## Threats and mitigations (STRIDE-style)
@@ -28,15 +28,15 @@ Public multi-tenant hosting is a **non-goal** for v1; anything needed before tha
 | Threat | Example | Mitigation | Status |
 |---|---|---|---|
 | Spoofing | Another SCC user connects to our Postgres on the same node | localhost bind + password auth (no `trust`) | ✅ |
-| Tampering | Replay edits the source run | Forks are new rows; source is never updated; test asserts byte-equality of source domain records | 🚧 M6 |
-| Tampering | Corrupted checkpoint restored | SHA-256 `state_hash` verified before restore; mismatch → ineligible | 🚧 M6 |
-| Repudiation | "Which change produced this result?" | Intervention record + lineage + environment fingerprint stored per fork | 🚧 M6 |
+| Tampering | Replay edits the source run | Forks are new rows with a pre-assigned id; source rows are only read; test fingerprints every source row before/after | ✅ M6 |
+| Tampering | Corrupted checkpoint restored | SHA-256 verified at ingest and again from disk before every replay; mismatch → ineligible (tested) | ✅ M6 |
+| Repudiation | "Which change produced this result?" | `replay_jobs` stores the exact resolved intervention (before/after), checkpoint, sandbox config and mode; fork carries `parent_execution_id` and the same record | ✅ M6 |
 | Information disclosure | API key in a tool argument persisted | Metadata-only capture by default; key- and value-pattern redaction on both sides; test with a deliberately non-redacting client | ✅ M3 |
 | Information disclosure | Password leaked via error message | Health checks return error class only (tested) | ✅ |
 | Information disclosure | `.env` committed | `.gitignore` excludes `.env*` except `.env.example`; example has placeholders only | ✅ |
 | Denial of service | Huge ingest batch | Request/payload/batch size limits; rate limits later | ✅ M3 limits · 🚧 M10 rate limits |
-| Elevation / side effects | Replay triggers a real email/payment | Only simulated tools exist; network blocked; isolation-incident counter must be 0 | 🚧 M6 |
-| Elevation | LLM analysis contains code that gets run | Never executed; displayed as text | 🚧 M5 |
+| Elevation / side effects | Replay triggers a real email/payment | Only simulated tools exist; network blocked; isolation incidents recorded per job | ✅ M6 |
+| Information disclosure | Checkpoint state leaks secrets | States are stored only for content-capture runs and only if a redaction scan finds nothing secret-shaped; otherwise the checkpoint is kept as hash-only | ✅ M6 |
 
 ## Known limitations (honest list)
 
@@ -48,3 +48,7 @@ Public multi-tenant hosting is a **non-goal** for v1; anything needed before tha
 - Anyone who already has your Unix account can read everything; that is out of scope.
 - SCC OnDemand access to the web UI goes through BU's authenticated OnDemand session;
   binding the web server to a non-localhost interface is not supported by the scripts.
+- Checkpoint states (content-capture runs only) are stored as files under
+  `.local-data/artifacts/`; anyone with access to that directory can read them.
+- The network guard is in-process. It blocks Python socket APIs, which is what the
+  simulated tools could use; it is not an OS-level sandbox (no seccomp/namespace).

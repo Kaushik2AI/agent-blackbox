@@ -122,3 +122,22 @@ make test-e2e                 # Playwright: open the failing run, click the fail
 `make test-e2e` targets `http://127.0.0.1:$WEB_PORT` on the same node, so it works in both
 direct and VS Code proxy modes. If Chromium will not start on SCC, set
 `E2E_CHROMIUM_PATH=/path/to/chrome` to use another Chromium build.
+
+## Findings and replay (M5–M7)
+
+- Findings are computed automatically when a finished run is ingested; see them at the top
+  of the run page. `make eval-detectors` prints precision/recall on the labelled fixtures.
+- Replays need the RQ worker, which `make dev` starts. Runs recorded **metadata-only**
+  cannot be replayed (their checkpoint state was never captured); `make seed-demo` records
+  with content capture so its runs are replayable.
+- Checkpoint states are stored in `.local-data/artifacts/` (override with
+  `BLACKBOX_ARTIFACT_DIR`). Deleting that folder makes old runs non-replayable, nothing else.
+- API: `GET /api/v1/executions/{id}/checkpoints`, `POST /api/v1/replays`,
+  `GET /api/v1/replays/{job}`, `GET /api/v1/replays/{job}/comparison`. Example:
+
+  ```bash
+  curl -s -X POST http://127.0.0.1:$API_PORT/api/v1/replays -H 'content-type: application/json' -d '{
+    "source_execution_id": "<run id>", "checkpoint_id": "<checkpoint before call #1>",
+    "intervention": {"type": "replace_tool_argument", "target_span_id": "<that call span>",
+                     "field": "sku", "value": "SKU-RED-004", "remove_fields": ["product_name"]}}'
+  ```

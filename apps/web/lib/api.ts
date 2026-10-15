@@ -259,3 +259,142 @@ export const api = {
   timeline: (id: string) => apiGet<Timeline>(`/api/v1/executions/${id}/timeline`),
   graph: (id: string) => apiGet<Graph>(`/api/v1/executions/${id}/graph`),
 };
+
+// ------------------------------------------------------------------ M5 findings
+export type Finding = {
+  id: string;
+  category: string;
+  severity: "critical" | "high" | "medium" | "low";
+  title: string;
+  explanation: string;
+  evidence_event_ids: string[];
+  evidence_span_ids: string[];
+  caveats: string[];
+  detector: string;
+  detector_version: string;
+  kind: "verified" | "hypothesis";
+};
+
+export type FindingsOut = { execution_id: string; findings: Finding[]; note: string };
+
+// ------------------------------------------------------------------ M6/M7 replay
+export type CheckpointOut = {
+  checkpoint_id: string;
+  step_index: number;
+  node_id: string;
+  target_span_id: string | null;
+  tool_name: string | null;
+  recorded_arguments: Record<string, unknown> | null;
+  replay_capability: string;
+  eligible: boolean;
+  reasons: string[];
+};
+
+export type ReplayJob = {
+  job_id: string;
+  source_execution_id: string;
+  fork_execution_id: string;
+  checkpoint_id: string;
+  checkpoint_step_index: number;
+  status: "queued" | "running" | "succeeded" | "failed";
+  replay_mode: string;
+  replay_level: "checkpoint_replay" | "controlled_counterfactual";
+  intervention: Record<string, unknown> | null;
+  sandbox: Record<string, unknown>;
+  attempts: number;
+  error: string | null;
+  result: Record<string, unknown>;
+  requested_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
+export type ReplayRequest = {
+  source_execution_id: string;
+  checkpoint_id: string;
+  mode: "deterministic";
+  sandbox: "fixture_only";
+  intervention: null | {
+    type: "replace_tool_argument" | "replace_tool_result";
+    target_span_id: string;
+    arguments?: Record<string, unknown>;
+    result?: Record<string, unknown>;
+  };
+  idempotency_key: string;
+};
+
+export type ComparisonStep = {
+  call_index: number;
+  inherited: boolean;
+  changed: boolean;
+  intervened: boolean;
+  source: StepSide | null;
+  fork: StepSide | null;
+};
+export type StepSide = {
+  tool: string | null;
+  status: string | null;
+  arguments: unknown;
+  error_code: string | null;
+  span_id: string | null;
+  intervention: string | null;
+};
+export type ComparisonSide = {
+  execution_id: string;
+  status: string;
+  verifier: { passed?: boolean; reasons?: string[] } | null;
+  termination: string | null;
+  metrics: Record<string, number | null>;
+  error_codes: string[];
+  findings: { category: string; severity: string; title: string }[];
+};
+export type Comparison = {
+  job_id: string;
+  replay_mode: string;
+  replay_level: string;
+  checkpoint: { checkpoint_id: string; step_index: number };
+  intervention: Record<string, unknown> | null;
+  sandbox: Record<string, unknown>;
+  source: ComparisonSide;
+  fork: ComparisonSide;
+  steps: ComparisonStep[];
+  first_divergence_call_index: number | null;
+  state_diff: { path: string; source: unknown; fork: unknown; change: string }[] | null;
+  state_diff_note: string | null;
+  outcome_changed: boolean;
+  caveat: string;
+};
+
+export async function apiPost<T>(path: string, body: unknown, base: string = backendBase()): Promise<{ status: number; data: T }> {
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch (err) {
+    throw new ApiError(null, `Could not reach the API: ${describeError(err, 0)}`);
+  }
+  const isJson = (res.headers.get("content-type") ?? "").includes("application/json");
+  const data: unknown = isJson ? await res.json() : null;
+  if (!res.ok) {
+    const detail = isJson && data && typeof data === "object" && "detail" in data
+      ? (data as { detail: unknown }).detail : `HTTP ${res.status}`;
+    const reasons = detail && typeof detail === "object" && "reasons" in (detail as object)
+      ? ((detail as { reasons: string[] }).reasons).join("; ")
+      : typeof detail === "string" ? detail : JSON.stringify(detail);
+    throw new ApiError(res.status, reasons);
+  }
+  return { status: res.status, data: data as T };
+}
+
+export const replayApi = {
+  findings: (id: string) => apiGet<FindingsOut>(`/api/v1/executions/${id}/findings`),
+  checkpoints: (id: string) => apiGet<CheckpointOut[]>(`/api/v1/executions/${id}/checkpoints`),
+  replaysOf: (id: string) => apiGet<ReplayJob[]>(`/api/v1/executions/${id}/replays`),
+  job: (jobId: string) => apiGet<ReplayJob>(`/api/v1/replays/${jobId}`),
+  comparison: (jobId: string) => apiGet<Comparison>(`/api/v1/replays/${jobId}/comparison`),
+  submit: (req: ReplayRequest) => apiPost<ReplayJob>("/api/v1/replays", req),
+};

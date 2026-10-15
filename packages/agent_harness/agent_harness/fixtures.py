@@ -35,6 +35,7 @@ class ModelScript(_Strict):
 
     inventory_argument: Literal["sku", "product_name"] = "sku"
     max_retries_on_timeout: int = Field(default=2, ge=0)
+    resolution_order_id: str | None = None
 
 
 class Budget(_Strict):

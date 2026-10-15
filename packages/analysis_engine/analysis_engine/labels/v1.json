@@ -1,0 +1,12 @@
+{
+  "_doc": "Ground-truth failure categories per fixture, assigned when each fixture was designed (the failure it injects). Used ONLY to measure detectors; detectors never read this file. A fixture with [] is a negative control.",
+  "label_set_version": "1.0",
+  "labels": {
+    "exchange_success": [],
+    "refund_out_of_stock": [],
+    "transient_inventory_timeout": [],
+    "invalid_inventory_argument": ["tool_schema_mismatch", "retry_loop", "budget_exhausted"],
+    "persistent_inventory_timeout": ["tool_timeout"],
+    "wrong_order_identity": ["state_identity_mismatch"]
+  }
+}

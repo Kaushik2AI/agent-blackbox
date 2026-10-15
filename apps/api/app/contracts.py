@@ -84,6 +84,16 @@ class ArtifactIn(_In):
     capture_policy: Literal["metadata_only", "content"] = "metadata_only"
 
 
+class CheckpointIn(_In):
+    checkpoint_id: uuid.UUID
+    step_index: int = Field(ge=0)
+    node_id: str = Field(min_length=1, max_length=64)
+    target_span_id: str | None = Field(default=None, pattern=HEX16)
+    state_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    # Full pre-step state; present only when the run was recorded with content capture.
+    state: dict[str, Any] | None = None
+
+
 class EventBatch(_In):
     schema_version: str
     resource: ResourceIn
@@ -91,6 +101,7 @@ class EventBatch(_In):
     spans: list[SpanIn] = Field(default_factory=list, max_length=5000)
     events: list[EventIn] = Field(default_factory=list, max_length=10000)
     artifacts: list[ArtifactIn] = Field(default_factory=list, max_length=100)
+    checkpoints: list[CheckpointIn] = Field(default_factory=list, max_length=1000)
 
     @field_validator("schema_version")
     @classmethod
@@ -113,3 +124,57 @@ class IngestResult(BaseModel):
     artifacts_new: int
     redactions: int
     payloads_truncated: int
+    checkpoints_new: int = 0
+    checkpoints_replayable: int = 0
+    findings: int = 0
+
+
+# ------------------------------------------------------------------ replay (M6)
+class InterventionIn(_In):
+    """One explicit change. replace_tool_argument: give the full `arguments` object, or a
+    single `field`/`value` edit (optionally removing fields) applied to the recorded
+    arguments. replace_tool_result: give the full `result` object."""
+
+    type: Literal["replace_tool_argument", "replace_tool_result"]
+    target_span_id: str = Field(pattern=HEX16)
+    arguments: dict[str, Any] | None = None
+    field: str | None = Field(default=None, max_length=100)
+    value: Any = None
+    remove_fields: list[str] = Field(default_factory=list, max_length=20)
+    result: dict[str, Any] | None = None
+
+
+FreezeItem = Literal["task_input", "tool_fixtures", "agent_version", "model_settings"]
+
+
+def _default_freeze() -> list[FreezeItem]:
+    return ["task_input", "tool_fixtures", "agent_version"]
+
+
+class ReplayRequest(_In):
+    source_execution_id: uuid.UUID
+    checkpoint_id: uuid.UUID
+    mode: Literal["deterministic", "controlled_stochastic"] = "deterministic"
+    sandbox: Literal["fixture_only"] = "fixture_only"
+    intervention: InterventionIn | None = None  # None = plain checkpoint replay (level 2)
+    freeze: list[FreezeItem] = Field(default_factory=_default_freeze)
+    idempotency_key: str | None = Field(default=None, min_length=8, max_length=200)
+
+
+class ReplayJobOut(BaseModel):
+    job_id: uuid.UUID
+    source_execution_id: uuid.UUID
+    fork_execution_id: uuid.UUID
+    checkpoint_id: uuid.UUID
+    checkpoint_step_index: int
+    status: str
+    replay_mode: str
+    replay_level: Literal["checkpoint_replay", "controlled_counterfactual"]
+    intervention: dict[str, Any] | None
+    sandbox: dict[str, Any]
+    attempts: int
+    error: str | None
+    result: dict[str, Any]
+    requested_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None

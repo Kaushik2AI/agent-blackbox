@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import executions, health, ingest
+from app.routers import executions, health, ingest, replays
 
 
 def create_app() -> FastAPI:
@@ -13,8 +13,9 @@ def create_app() -> FastAPI:
         title="Agent BlackBox API",
         version="0.1.0",
         description=(
-            "Agent BlackBox: health, idempotent event ingestion (M3) and read APIs for the "
-            "execution inspector (M4). No replay yet. No auth yet: local development only."
+            "Agent BlackBox: health, idempotent event ingestion (M3), read APIs (M4), "
+            "evidence-backed findings (M5), sandboxed checkpoint replay (M6) and "
+            "original-vs-fork comparison (M7). No auth yet: local development only."
         ),
     )
     app.add_middleware(
@@ -26,6 +27,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(ingest.router)
     app.include_router(executions.router)
+    app.include_router(replays.router)
     return app
 
 

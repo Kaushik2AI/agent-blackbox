@@ -1,0 +1,40 @@
+[project]
+name = "analysis-engine"
+version = "0.5.0"
+description = "Agent BlackBox rule-based failure detectors with event citations (M5)"
+requires-python = ">=3.11"
+dependencies = ["pydantic==2.14.1"]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "ruff==0.17.0", "mypy==2.4.0"]
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["analysis_engine*"]
+
+[tool.setuptools.package-data]
+analysis_engine = ["labels/*.json", "py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["analysis_engine"]
+known-third-party = ["agent_harness", "blackbox_sdk"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = "../agent_harness:../blackbox_sdk"

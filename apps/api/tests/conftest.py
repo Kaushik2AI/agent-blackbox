@@ -25,6 +25,21 @@ def _alembic_config() -> Config:
     return cfg
 
 
+@pytest.fixture(scope="session", autouse=True)
+def artifact_dir(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
+    """Checkpoint states written by tests go to a temp dir, never the dev data dir."""
+    path = tmp_path_factory.mktemp("artifacts")
+    previous = os.environ.get("BLACKBOX_ARTIFACT_DIR")
+    os.environ["BLACKBOX_ARTIFACT_DIR"] = str(path)
+    _clear_caches()
+    yield path
+    if previous is None:
+        os.environ.pop("BLACKBOX_ARTIFACT_DIR", None)
+    else:
+        os.environ["BLACKBOX_ARTIFACT_DIR"] = previous
+    _clear_caches()
+
+
 @pytest.fixture(scope="session")
 def test_database_url() -> Iterator[str]:
     from app.config import get_settings

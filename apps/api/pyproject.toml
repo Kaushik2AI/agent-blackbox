@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Agent BlackBox API: ingestion, run store, replay orchestration (M1: health + schema only)"
 requires-python = ">=3.11"
 # Exact pins: verified to install together on Python 3.11-3.13 (2026-10-14).
+# Also requires the workspace packages packages/agent_harness, packages/blackbox_sdk and
+# packages/analysis_engine (installed editable by `make setup-scc` / `make install` / CI).
 dependencies = [
   "fastapi==0.143.1",
   "uvicorn[standard]==0.54.0",
@@ -47,7 +49,9 @@ python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
 exclude = ["migrations/"]
+# The workspace packages are editable installs, which mypy cannot see; point at sources.
+mypy_path = "../../packages/agent_harness:../../packages/blackbox_sdk:../../packages/analysis_engine"
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
-known-third-party = ["agent_harness", "blackbox_sdk"]
+known-third-party = ["agent_harness", "blackbox_sdk", "analysis_engine"]

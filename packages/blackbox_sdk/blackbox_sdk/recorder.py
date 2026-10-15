@@ -13,6 +13,8 @@ redaction. Either way secrets are redacted before anything leaves the process.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import secrets
 import time
 import uuid
@@ -23,6 +25,10 @@ from typing import Any, Literal
 from blackbox_sdk.redaction import Redactor
 
 SpanKind = Literal["agent", "llm", "tool", "retrieval", "chain"]
+
+# Business identifiers whose CONSISTENCY matters for diagnosis (e.g. "the order looked up
+# is not the order resolved"). They are fingerprinted, never stored, in metadata-only mode.
+IDENTITY_KEYS = ("order_id", "sku", "customer_id")
 SpanStatus = Literal["unset", "ok", "error"]
 
 
@@ -95,6 +101,10 @@ class Recorder:
         self.execution_attributes: dict[str, Any] = {}
         self._seq = 0
         self._redactor = Redactor()
+        self.checkpoints: list[dict[str, Any]] = []
+        # Per-execution secret salt: fingerprints compare equal within this run only and
+        # cannot be looked up in a table of known IDs.
+        self._salt = secrets.token_bytes(16)
 
     # ------------------------------------------------------------- content policy
     @property
@@ -104,6 +114,17 @@ class Recorder:
     def capture(self, value: Any) -> Any:
         """Value for an event payload. Payloads are redacted in add_event either way."""
         return value if self.capture_content else shape_of(value)
+
+    def identity(self, value: Any) -> dict[str, str]:
+        """HMAC fingerprints of identity fields found at the top level of `value`."""
+        if not isinstance(value, dict):
+            return {}
+        return {
+            key: "fp:"
+            + hmac.new(self._salt, str(value[key]).encode(), hashlib.sha256).hexdigest()[:16]
+            for key in IDENTITY_KEYS
+            if key in value and value[key] is not None
+        }
 
     def redact(self, value: Any) -> Any:
         return self._redactor(value)
@@ -178,6 +199,28 @@ class Recorder:
             }
         )
 
+    def add_checkpoint(
+        self,
+        *,
+        step_index: int,
+        node_id: str,
+        state_sha256: str,
+        state: dict[str, Any] | None,
+        target_span_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Register a PRE-STEP checkpoint. Its full state is only sent when content capture
+        is on; otherwise only the hash is, and the checkpoint cannot be replayed."""
+        checkpoint = {
+            "checkpoint_id": str(uuid.uuid4()),
+            "step_index": step_index,
+            "node_id": node_id,
+            "target_span_id": target_span_id,
+            "state_sha256": state_sha256,
+            "state": state if self.capture_content else None,
+        }
+        self.checkpoints.append(checkpoint)
+        return checkpoint
+
     def finish(
         self,
         status: Literal["succeeded", "failed", "aborted"],
@@ -236,6 +279,7 @@ class Recorder:
                 "spans": spans if i == 0 else [],
                 "events": chunk,
                 "artifacts": self.artifacts if i == 0 else [],
+                "checkpoints": self.checkpoints if i == 0 else [],
             }
             for i, chunk in enumerate(chunks)
         ]

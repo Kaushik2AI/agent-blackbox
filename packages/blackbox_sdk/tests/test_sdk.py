@@ -185,3 +185,69 @@ def test_client_and_server_redaction_rules_are_identical() -> None:
         return src.split('"""', 2)[2]  # drop the module docstring
 
     assert body(server) == body(client)
+
+
+# ------------------------------------------------------------------ M5/M6 additions
+def test_checkpoints_link_to_their_tool_span_and_respect_capture_policy() -> None:
+    meta = traced("invalid_inventory_argument")
+    content = traced("invalid_inventory_argument", capture_content=True)
+    tool_spans = {s["span_id"]: s for s in meta["spans"] if s["kind"] == "tool"}
+    assert len(meta["checkpoints"]) == 8
+    for cp in meta["checkpoints"]:
+        assert cp["state"] is None and len(cp["state_sha256"]) == 64
+        span = tool_spans[cp["target_span_id"]]
+        assert span["attributes"]["blackbox.call_index"] == cp["step_index"]
+    assert all(
+        cp["state"]["schema"] == "agent-harness-checkpoint/1" for cp in content["checkpoints"]
+    )
+    # Metadata-only and content runs of a deterministic agent hash identical states.
+    assert [c["state_sha256"] for c in meta["checkpoints"]] == [
+        c["state_sha256"] for c in content["checkpoints"]
+    ]
+
+
+def test_identity_fingerprints_compare_within_a_run_only() -> None:
+    a = traced("exchange_success")
+    b = traced("exchange_success")
+
+    def fp(batch: dict, tool: str) -> str:
+        ev = next(
+            e
+            for e in batch["events"]
+            if e["event_type"] == "tool_call_end" and e["tool_name"] == tool
+        )
+        return ev["payload"]["identity"]["order_id"]
+
+    assert fp(a, "lookup_order") == fp(a, "submit_resolution")
+    assert fp(a, "lookup_order") != fp(b, "lookup_order")  # salted per execution
+    assert "ORD-1001" not in json.dumps(a["events"])
+
+
+def test_replay_traced_records_a_fork_with_lineage() -> None:
+    from agent_harness.interventions import ReplaceToolArguments
+
+    from blackbox_sdk.integrations.agent_harness import replay_traced
+
+    src = traced("invalid_inventory_argument", capture_content=True)
+    doc = src["checkpoints"][1]["state"]
+    mem = MemoryExporter()
+    fork_id = "11111111-2222-4333-8444-555555555555"
+    run, _ = replay_traced(
+        doc,
+        [ReplaceToolArguments(1, {"sku": "SKU-RED-004"})],
+        mem,
+        fork_execution_id=fork_id,
+        parent_execution_id=src["execution"]["execution_id"],
+        extra_attributes={"replay": {"job_id": "j"}},
+    )
+    b = mem.batches[0]
+    assert run.verifier.passed and b["execution"]["execution_id"] == fork_id
+    assert b["execution"]["parent_execution_id"] == src["execution"]["execution_id"]
+    assert b["execution"]["attributes"]["replay"] == {"job_id": "j"}
+    types = [e["event_type"] for e in b["events"]]
+    assert "replay_start" in types and "intervention_applied" in types
+    # Only the suffix is re-executed: tool calls 1..4, not the lookup_order before it.
+    calls = [
+        e["attributes"]["call_index"] for e in b["events"] if e["event_type"] == "tool_call_end"
+    ]
+    assert calls == [1, 2, 3, 4]

@@ -24,7 +24,8 @@ from typing import Any, Protocol
 
 from agent_harness import __version__ as harness_version
 from agent_harness.fixtures import load_fixture
-from agent_harness.runner import RunResult, run_fixture
+from agent_harness.interventions import Intervention
+from agent_harness.runner import RunResult, run_fixture, run_from_checkpoint
 from agent_harness.tools import TOOL_CONTRACT_VERSION
 
 from blackbox_sdk.recorder import Recorder, Resource, SpanHandle
@@ -81,15 +82,27 @@ class HarnessTracer:
     """EventSink for agent_harness.run_fixture that records spans and events."""
 
     def __init__(
-        self, task_id: str, model_name: str, *, capture_content: bool = False, project: str = "demo"
+        self,
+        task_id: str,
+        model_name: str,
+        *,
+        capture_content: bool = False,
+        project: str = "demo",
+        execution_id: str | None = None,
+        parent_execution_id: str | None = None,
+        extra_attributes: dict[str, Any] | None = None,
     ) -> None:
         self.task_id = task_id
         self.model_name = model_name
         self.capture_content = capture_content
         self.project = project
+        self.forced_execution_id = execution_id
+        self.parent_execution_id = parent_execution_id
+        self.extra_attributes = extra_attributes or {}
         self.recorder: Recorder | None = None
         self.root: SpanHandle | None = None
         self.open_tool: SpanHandle | None = None
+        self.pending_checkpoint: dict[str, Any] | None = None
 
     def __call__(self, event_type: str, data: dict[str, Any]) -> None:
         handler = getattr(self, f"_on_{event_type}", None)
@@ -100,9 +113,11 @@ class HarnessTracer:
     def _on_agent_start(self, data: dict[str, Any]) -> None:
         self.recorder = Recorder(
             resource=harness_resource(self.model_name, self.project),
-            execution_id=data["execution_id"],
+            # A replay worker pre-assigns the fork id so retries stay idempotent.
+            execution_id=self.forced_execution_id or data["execution_id"],
             task_id=self.task_id,
             capture_content=self.capture_content,
+            parent_execution_id=self.parent_execution_id,
         )
         self.root = self.recorder.start_span(
             f"invoke_agent {AGENT_NAME}",
@@ -118,6 +133,46 @@ class HarnessTracer:
             "agent_start",
             operation="invoke_agent",
             payload={"fixture_id": data["fixture_id"]},
+        )
+        resumed = data.get("resumed_from_call_index")
+        if resumed is not None:
+            self.root.attributes["blackbox.resumed_from_call_index"] = resumed
+            self.recorder.add_event(
+                self.root,
+                "replay_start",
+                operation="invoke_agent",
+                payload={
+                    "resumed_from_call_index": resumed,
+                    "parent_execution_id": self.parent_execution_id,
+                },
+            )
+
+    def _on_checkpoint(self, data: dict[str, Any]) -> None:
+        rec, _ = self._require()
+        # The tool span this checkpoint precedes does not exist yet; link it on start.
+        self.pending_checkpoint = rec.add_checkpoint(
+            step_index=data["call_index"],
+            node_id=data["node_id"],
+            state_sha256=data["sha256"],
+            state=data["document"],
+        )
+
+    def _on_intervention_applied(self, data: dict[str, Any]) -> None:
+        rec, root = self._require()
+        payload = {
+            "type": data["type"],
+            "call_index": data["call_index"],
+            "tool": data["tool"],
+            "after": rec.capture(data.get("after")),
+        }
+        if "before" in data:
+            payload["before"] = rec.capture(data["before"])
+        rec.add_event(
+            root,
+            "intervention_applied",
+            operation="replay",
+            tool_name=data["tool"],
+            payload=payload,
         )
 
     def _on_model_decision(self, data: dict[str, Any]) -> None:
@@ -162,12 +217,18 @@ class HarnessTracer:
                 "blackbox.call_index": data["call_index"],
             },
         )
+        if self.pending_checkpoint is not None:
+            self.pending_checkpoint["target_span_id"] = self.open_tool.span_id
+            self.pending_checkpoint = None
         rec.add_event(
             self.open_tool,
             "tool_call_start",
             operation="execute_tool",
             tool_name=data["tool"],
-            payload={"arguments": rec.capture(data["args"])},
+            payload={
+                "arguments": rec.capture(data["args"]),
+                "identity": rec.identity(data["args"]),
+            },
         )
 
     def _on_tool_call_end(self, data: dict[str, Any]) -> None:
@@ -175,10 +236,19 @@ class HarnessTracer:
         span = self.open_tool
         assert span is not None, "tool_call_end without tool_call_start"
         ok = bool(data["ok"])
-        payload: dict[str, Any] = {"input_redacted": rec.capture(data["args"])}
-        attributes: dict[str, Any] = {"elapsed_ms": data.get("elapsed_ms")}
+        payload: dict[str, Any] = {
+            "input_redacted": rec.capture(data["args"]),
+            "identity": rec.identity(data["args"]),
+        }
+        attributes: dict[str, Any] = {
+            "elapsed_ms": data.get("elapsed_ms"),
+            "call_index": data["call_index"],
+        }
+        if data.get("intervention"):
+            attributes["intervention"] = data["intervention"]
         if ok:
             payload["output"] = rec.capture(data["result"])
+            payload["output_identity"] = rec.identity(data["result"])
         else:
             payload["error_code"] = data["error_code"]
             payload["error_message"] = data.get("error")
@@ -243,6 +313,11 @@ class HarnessTracer:
                 "agent_version": result.agent_version,
                 "tool_contract_version": result.tool_contract_version,
                 "capture_policy": rec.capture_policy,
+                "resumed_from_call_index": result.resumed_from_call_index,
+                # Final sandbox content (for original-vs-fork state diffs) only when the
+                # run was recorded with content capture.
+                **({"final_sandbox": result.sandbox_effects} if self.capture_content else {}),
+                **self.extra_attributes,
             },
         )
         return rec
@@ -262,6 +337,37 @@ def run_traced(
     model = StubModel(fixture.model)
     tracer = HarnessTracer(fixture_id, model.name, capture_content=capture_content, project=project)
     result = run_fixture(fixture_id, model=model, on_event=tracer)
+    recorder = tracer.finish(result)
+    responses = [exporter.export(batch) for batch in recorder.to_batches()]
+    return result, responses
+
+
+def replay_traced(
+    document: dict[str, Any],
+    interventions: list[Intervention],
+    exporter: Exporter,
+    *,
+    fork_execution_id: str,
+    parent_execution_id: str,
+    extra_attributes: dict[str, Any],
+    project: str = "demo",
+) -> tuple[RunResult, list[dict[str, Any]]]:
+    """Resume a checkpoint as a NEW traced execution (a fork) and export its batches.
+    The fork is always recorded with content capture so it can itself be replayed."""
+    from agent_harness.model import StubModel
+
+    fixture = load_fixture(document["fixture_id"])
+    model = StubModel(fixture.model)
+    tracer = HarnessTracer(
+        fixture.fixture_id,
+        model.name,
+        capture_content=True,
+        project=project,
+        execution_id=fork_execution_id,
+        parent_execution_id=parent_execution_id,
+        extra_attributes=extra_attributes,
+    )
+    result = run_from_checkpoint(document, interventions, on_event=tracer, model=model)
     recorder = tracer.finish(result)
     responses = [exporter.export(batch) for batch in recorder.to_batches()]
     return result, responses

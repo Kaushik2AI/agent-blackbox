@@ -44,3 +44,27 @@ class Sandbox:
 
     def effects_of(self, kind: str) -> list[dict[str, Any]]:
         return [e.payload for e in self.effects if e.kind == kind]
+
+    # ------------------------------------------------------------- checkpoints (M6)
+    def snapshot(self) -> dict[str, Any]:
+        """JSON-serialisable copy of everything needed to resume from this point."""
+        return copy.deepcopy(
+            {
+                "world": self.world,
+                "faults": self.faults,
+                "effects": [
+                    {"kind": e.kind, "effect_id": e.effect_id, "payload": e.payload}
+                    for e in self.effects
+                ],
+            }
+        )
+
+    @classmethod
+    def restore(cls, snapshot: dict[str, Any]) -> Sandbox:
+        """A NEW, independent sandbox: writes to it never reach the snapshot's source."""
+        snap = copy.deepcopy(snapshot)
+        return cls(
+            world=snap["world"],
+            faults=dict(snap["faults"]),
+            effects=[Effect(e["kind"], e["effect_id"], e["payload"]) for e in snap["effects"]],
+        )

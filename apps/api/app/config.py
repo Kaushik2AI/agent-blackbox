@@ -38,6 +38,21 @@ class Settings(BaseSettings):
     # Ingestion limits (blueprint §13): whole request, and each stored payload/attribute map.
     max_ingest_bytes: int = 2_000_000
     max_event_payload_bytes: int = 32_768
+    # Where checkpoint states (and later other artifacts) are written. Defaults inside the
+    # repo's git-ignored data dir; tests point it at a temp dir.
+    artifact_dir: Path = Field(
+        default=REPO_ROOT / ".local-data" / "artifacts", validation_alias="BLACKBOX_ARTIFACT_DIR"
+    )
+    # Policy for reading analysis findings: projects whose findings may be served.
+    # "*" = all (single-user local dev). Real per-user auth arrives in M10.
+    findings_allowed_projects: Annotated[list[str], NoDecode] = ["*"]
+
+    @field_validator("findings_allowed_projects", mode="before")
+    @classmethod
+    def _split_projects(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [part.strip() for part in value.split(",") if part.strip()]
+        return value
 
     @field_validator("cors_origins", mode="before")
     @classmethod

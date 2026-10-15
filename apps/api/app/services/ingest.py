@@ -25,6 +25,7 @@ from app.models import (
     Agent,
     AgentVersion,
     Artifact,
+    Checkpoint,
     Event,
     Execution,
     ExecutionStatus,
@@ -32,6 +33,8 @@ from app.models import (
     Span,
 )
 from app.redaction import Redactor
+from app.services.analysis import refresh_findings
+from app.services.checkpoints import AVAILABLE, store_checkpoint
 
 TERMINAL = {ExecutionStatus.SUCCEEDED, ExecutionStatus.FAILED, ExecutionStatus.ABORTED}
 
@@ -192,8 +195,24 @@ def ingest_batch(session: Session, batch: EventBatch, *, max_payload_bytes: int)
         )
         artifacts_new += len(result.all())
 
+    # ---------------------------------------------------------------- checkpoints
+    known_steps = set(
+        session.scalars(
+            select(Checkpoint.step_index).where(Checkpoint.execution_id == execution.id)
+        )
+    )
+    checkpoints_new = replayable = 0
+    for cp in batch.checkpoints:
+        if cp.step_index in known_steps:
+            continue  # idempotent: the first stored checkpoint for a step wins
+        row = store_checkpoint(session, execution.id, project.id, cp)
+        known_steps.add(cp.step_index)
+        checkpoints_new += 1
+        replayable += row.replay_capability == AVAILABLE
+
     session.flush()
     _refresh_derived(session, execution)
+    findings = refresh_findings(session, execution) if execution.status in TERMINAL else 0
     session.commit()
     return IngestResult(
         execution_id=execution.id,
@@ -205,6 +224,9 @@ def ingest_batch(session: Session, batch: EventBatch, *, max_payload_bytes: int)
         artifacts_new=artifacts_new,
         redactions=redact.count,
         payloads_truncated=limit.truncated,
+        checkpoints_new=checkpoints_new,
+        checkpoints_replayable=replayable,
+        findings=findings,
     )
 
 

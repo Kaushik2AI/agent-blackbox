@@ -14,9 +14,9 @@ flowchart LR
     SDK -- "POST /api/v1/events:batch ✅M3" --> API
     API --> PG[(PostgreSQL ✅<br/>runs · spans · events · artifacts)]
     API -- enqueue --> R[(Redis ✅M1)]
-    R --> WK[RQ worker ✅M1<br/>selftest job only]
-    WK --> RE[Replay engine 🚧M6]
-    API --> AN[Analyzer 🚧M5]
+    R --> WK[RQ worker ✅M6<br/>replay jobs]
+    WK --> RE[Replay engine ✅M6<br/>checkpoint resume · no network]
+    API --> AN[Analyzer ✅M5<br/>5 rule detectors]
   end
   SCC[BU SCC qsub GPU batch 🚧M9] -- JSONL import --> API
 ```
@@ -75,9 +75,9 @@ stateDiagram-v2
 | 1 | **Overview** | ✅ M4 | executions aggregate API | total runs, success rate, top failure categories, median latency, token spend; filters (version/date/outcome/model) | "No runs yet — run `make seed-demo`" |
 | 2 | **Runs explorer** | ✅ M4 | `GET /api/v1/executions` | status, task, run ID, version, duration, cost estimate, failure tags; pagination; keyboard nav | no-match filter message; network error with retry |
 | 3 | **Execution inspector** | ✅ M4 | `/timeline`, `/graph` | React Flow DAG (zoom, clickable), ordered timeline, event inspector with **redacted** payloads, error + stack, parent/child spans | spans missing parents shown as orphans, not dropped |
-| 4 | **Findings panel** | M5 | `/findings` | category, severity, detector version, links to evidence events; LLM text badged **Hypothesis** | "No rule fired" (not "healthy") |
-| 5 | **Replay studio** | M7 | `/checkpoints`, `POST /replays`, `GET /replays/{id}` | only eligible checkpoints; one intervention (type, target call, schema-validated editor); sandbox badge; confirm dialog; async progress | replay button **disabled** with reason when no eligible checkpoint |
-| 6 | **Comparison** | M7 | `/replays/{id}/comparison` | side-by-side graphs, the exact intervention record, JSON diff, verifier outcome, latency/calls/tokens/cost; replay class (`deterministic` / `controlled_stochastic` / `best_effort`) | fork still running → progress; fork failed → shown honestly |
+| 4 | **Findings panel** | ✅ M5 | `/findings` | category, severity, detector version, links to evidence events; LLM text badged **Hypothesis** | "No rule fired" (not "healthy") |
+| 5 | **Replay studio** | ✅ M7 | `/checkpoints`, `POST /replays`, `GET /replays/{id}` | only eligible checkpoints; one intervention (type, target call, schema-validated editor); sandbox badge; confirm dialog; async progress | replay button **disabled** with reason when no eligible checkpoint |
+| 6 | **Comparison** | ✅ M7 | `/replays/{id}/comparison` | side-by-side graphs, the exact intervention record, JSON diff, verifier outcome, latency/calls/tokens/cost; replay class (`deterministic` / `controlled_stochastic` / `best_effort`) | fork still running → progress; fork failed → shown honestly |
 | 7 | **Evaluation lab** | M8 | `/evaluations` | benchmark, baselines vs intervention, denominators, CIs, export JSON/CSV | numbers only from result files |
 | 8 | **Integration page** | M10 | project/API-key APIs | copyable SDK snippet; API key shown once at creation | — |
 
@@ -92,10 +92,10 @@ flowchart TD
   M1 --> M2[M2 Sandbox agent + fixtures + verifiers ✅]
   M2 --> M3[M3 SDK + idempotent ingest ✅]
   M3 --> M4[M4 Trace UI ✅]
-  M3 --> M5[M5 Rule detectors + P/R]
-  M2 --> M6[M6 Checkpoint replay engine]
+  M3 --> M5[M5 Rule detectors + P/R ✅]
+  M2 --> M6[M6 Checkpoint replay engine ✅]
   M3 --> M6
-  M4 --> M7[M7 Replay studio + comparison]
+  M4 --> M7[M7 Replay studio + comparison ✅]
   M5 --> M7
   M6 --> M7
   M7 --> M8[M8 Benchmark 30-60 cases]

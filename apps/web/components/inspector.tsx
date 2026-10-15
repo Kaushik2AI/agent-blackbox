@@ -1,29 +1,34 @@
 "use client";
 
-import "@xyflow/react/dist/style.css";
-
-import {
-  Background,
-  Controls,
-  Handle,
-  type Node,
-  type NodeProps,
-  Position,
-  ReactFlow,
-  type Edge,
-} from "@xyflow/react";
 import { useMemo, useState } from "react";
-import { api, type EventOut, type ExecutionDetail, type Graph, type Timeline } from "@/lib/api";
-import { fmtDuration, fmtTime, href } from "@/lib/format";
-import { layoutGraph } from "@/lib/graph-layout";
+import {
+  api,
+  type EventOut,
+  type ExecutionDetail,
+  type Finding,
+  type Graph,
+  type ReplayJob,
+  replayApi,
+  type Timeline,
+} from "@/lib/api";
+import { fmtDuration, fmtTime, href, shortId } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
+import { ExecutionGraph } from "./execution-graph";
 import { Card, ErrorBox, Loading, StatusBadge, Tag } from "./ui";
 
-type Loaded = { detail: ExecutionDetail; timeline: Timeline; graph: Graph };
+type Loaded = {
+  detail: ExecutionDetail;
+  timeline: Timeline;
+  graph: Graph;
+  findings: Finding[];
+  replays: ReplayJob[];
+};
 
 async function loadAll(id: string): Promise<Loaded> {
-  const [detail, timeline, graph] = await Promise.all([api.execution(id), api.timeline(id), api.graph(id)]);
-  return { detail, timeline, graph };
+  const [detail, timeline, graph, findings, replays] = await Promise.all([
+    api.execution(id), api.timeline(id), api.graph(id), replayApi.findings(id), replayApi.replaysOf(id),
+  ]);
+  return { detail, timeline, graph, findings: findings.findings, replays };
 }
 
 export function Inspector({ id }: { id: string }) {
@@ -39,20 +44,116 @@ export function Inspector({ id }: { id: string }) {
 }
 
 function Loaded({ data }: { data: Loaded }) {
-  const { detail, timeline, graph } = data;
+  const { detail, timeline, graph, findings, replays } = data;
   const root = graph.nodes.find((n) => n.parent_span_id === null) ?? graph.nodes[0];
   const firstFailure = graph.nodes.find((n) => n.error_code) ?? null;
   const [selected, setSelected] = useState<string | null>(root?.id ?? null);
+  const findingsBySpan = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const f of findings) for (const s of f.evidence_span_ids) counts[s] = (counts[s] ?? 0) + 1;
+    return counts;
+  }, [findings]);
+  const eventSpan = useMemo(
+    () => Object.fromEntries(timeline.events.map((e) => [e.event_id, e.span_id])),
+    [timeline],
+  );
+  const intervened = useMemo(
+    () => timeline.events.filter((e) => e.attributes.intervention && e.span_id).map((e) => e.span_id as string),
+    [timeline],
+  );
 
   return (
     <>
       <Header detail={detail} onJump={firstFailure ? () => setSelected(firstFailure.id) : undefined} />
+      <Lineage detail={detail} replays={replays} />
+      <FindingsPanel findings={findings} eventSpan={eventSpan} onSelect={setSelected} />
       <div className="mt-4 grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)_400px]">
         <TimelinePanel events={timeline.events} selected={selected} onSelect={setSelected} />
-        <GraphPanel graph={graph} selected={selected} onSelect={setSelected} />
-        <SpanPanel timeline={timeline} spanId={selected} />
+        <Card title="Execution graph" className="min-w-0">
+          <ExecutionGraph graph={graph} selected={selected} onSelect={setSelected}
+            findingsBySpan={findingsBySpan} intervenedSpans={intervened} />
+        </Card>
+        <SpanPanel timeline={timeline} spanId={selected} findings={findings} />
       </div>
     </>
+  );
+}
+
+const SEVERITY: Record<string, string> = {
+  critical: "bg-bad text-ink", high: "bg-bad/20 text-bad", medium: "bg-warn/20 text-warn", low: "bg-line text-muted",
+};
+
+function FindingsPanel({ findings, eventSpan, onSelect }: {
+  findings: Finding[]; eventSpan: Record<string, string | null>; onSelect: (span: string) => void;
+}) {
+  return (
+    <Card title={`Findings · ${findings.length}`} className="mt-4">
+      {findings.length === 0 ? (
+        <p className="px-4 py-3 text-sm text-muted" data-testid="no-findings">
+          No detector fired on this run. That is not proof the run is healthy: only the five
+          rule-based detectors (schema mismatch, retry loop, timeout, budget, identity) were applied.
+        </p>
+      ) : (
+        <ul className="divide-y divide-line" data-testid="findings">
+          {findings.map((f) => (
+            <li key={f.id} className="px-4 py-3" data-testid="finding" data-category={f.category}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase ${SEVERITY[f.severity] ?? SEVERITY.low}`}>{f.severity}</span>
+                <span className="font-mono text-xs text-muted">{f.category}</span>
+                <span className="text-sm font-medium">{f.title}</span>
+                <span className="ml-auto rounded border border-ok/40 px-1.5 py-0.5 text-[10px] text-ok"
+                  title="Produced by a deterministic detector from recorded events">
+                  verified · {f.detector} v{f.detector_version}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-muted">{f.explanation}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-muted">Evidence:</span>
+                {f.evidence_event_ids.map((id) => (
+                  <button key={id} type="button" disabled={!eventSpan[id]}
+                    onClick={() => eventSpan[id] && onSelect(eventSpan[id] as string)}
+                    className="rounded border border-line px-1.5 py-0.5 font-mono hover:bg-line focus-visible:outline-2 focus-visible:outline-ok">
+                    event {shortId(id, 6)}
+                  </button>
+                ))}
+              </div>
+              {f.caveats.length > 0 && <p className="mt-1 text-[11px] text-muted">Caveats: {f.caveats.join("; ")}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function Lineage({ detail, replays }: { detail: ExecutionDetail; replays: ReplayJob[] }) {
+  const replay = (detail.attributes as Record<string, unknown>).replay as
+    | { job_id?: string; checkpoint_step_index?: number }
+    | undefined;
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+      <a href={href(`/runs/${detail.id}/replay`)} data-testid="open-replay-studio"
+        className="rounded border border-warn/60 px-3 py-1.5 text-warn hover:bg-warn/10 focus-visible:outline-2 focus-visible:outline-warn">
+        ⑂ Replay Studio
+      </a>
+      {detail.parent_execution_id && (
+        <span className="text-muted">
+          Fork of <a className="font-mono text-[#e6edf3] hover:underline" href={href(`/runs/${detail.parent_execution_id}`)}>{shortId(detail.parent_execution_id)}</a>
+          {replay?.checkpoint_step_index !== undefined && <> from checkpoint before call #{replay.checkpoint_step_index}</>}
+          {replay?.job_id && <> · <a className="hover:underline" href={href(`/replays/${replay.job_id}`)}>comparison →</a></>}
+        </span>
+      )}
+      {replays.length > 0 && (
+        <span className="text-muted">
+          Replays of this run:{" "}
+          {replays.map((r) => (
+            <a key={r.job_id} href={href(`/replays/${r.job_id}`)} className="mr-2 font-mono hover:underline">
+              {shortId(r.job_id, 6)}<span className={r.result.fork_verifier_passed ? "text-ok" : "text-bad"}> {String(r.status)}</span>
+            </a>
+          ))}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -148,86 +249,10 @@ function TimelinePanel({ events, selected, onSelect }: {
   );
 }
 
-// ------------------------------------------------------------------ graph
-type SpanNodeData = {
-  label: string; kind: string; status: string; error: string | null;
-  duration: number | null; selected: boolean; orphan: boolean;
-};
-
-function SpanNode({ data }: NodeProps<Node<SpanNodeData>>) {
-  const tone = data.status === "error" ? "border-bad" : data.status === "ok" ? "border-ok/60" : "border-line";
-  return (
-    <div
-      data-testid="graph-node"
-      data-status={data.status}
-      data-error={data.error ?? ""}
-      className={`w-[230px] rounded-md border bg-panel px-3 py-2 text-left shadow ${tone} ${data.selected ? "ring-2 ring-[#e6edf3]" : ""}`}
-    >
-      <Handle type="target" position={Position.Top} className="!bg-line" />
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">{data.kind}{data.orphan ? " · orphan" : ""}</span>
-        <span className="font-mono text-[10px] text-muted">{fmtDuration(data.duration)}</span>
-      </div>
-      <div className="truncate font-mono text-xs text-[#e6edf3]">{data.label}</div>
-      {data.error && <div className="mt-1 font-mono text-[11px] text-bad">{data.error}</div>}
-      <Handle type="source" position={Position.Bottom} className="!bg-line" />
-    </div>
-  );
-}
-
-const NODE_TYPES = { span: SpanNode };
-
-function GraphPanel({ graph, selected, onSelect }: {
-  graph: Graph; selected: string | null; onSelect: (id: string) => void;
-}) {
-  const { nodes, edges } = useMemo(() => {
-    const layout = layoutGraph(graph.nodes, graph.edges);
-    const nodes: Node<SpanNodeData>[] = layout.positioned.map((p) => ({
-      id: p.node.id,
-      type: "span",
-      position: { x: p.x, y: p.y },
-      ariaLabel: `${p.node.name}, ${p.node.status}${p.node.error_code ? `, ${p.node.error_code}` : ""}`,
-      data: {
-        label: p.node.name, kind: p.node.kind, status: p.node.status, error: p.node.error_code,
-        duration: p.node.duration_ms, selected: p.node.id === selected, orphan: p.node.orphan,
-      },
-    }));
-    const edges: Edge[] = layout.edges.map((e) => ({
-      id: e.id, source: e.source, target: e.target,
-      style: { stroke: e.failed ? "#f85149" : "#3d4651", strokeWidth: 1.5 },
-    }));
-    return { nodes, edges };
-  }, [graph, selected]);
-
-  return (
-    <Card title="Execution graph" className="min-w-0">
-      <div className="h-[520px] lg:h-[600px]" data-testid="graph">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={NODE_TYPES}
-          onNodeClick={(_, n) => onSelect(n.id)}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          colorMode="dark"
-          fitView
-          // Fit the first steps so labels stay readable; scroll/drag to see the rest.
-          fitViewOptions={{ padding: 0.1, maxZoom: 1, nodes: nodes.slice(0, 9).map((n) => ({ id: n.id })) }}
-          panOnScroll
-          minZoom={0.2}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background gap={24} color="#232a33" />
-          <Controls showInteractive={false} />
-        </ReactFlow>
-      </div>
-    </Card>
-  );
-}
-
 // ------------------------------------------------------------------ span inspector
-function SpanPanel({ timeline, spanId }: { timeline: Timeline; spanId: string | null }) {
+function SpanPanel({ timeline, spanId, findings }: { timeline: Timeline; spanId: string | null; findings: Finding[] }) {
   const span = timeline.spans.find((s) => s.span_id === spanId) ?? null;
+  const cited = findings.filter((f) => spanId && f.evidence_span_ids.includes(spanId));
   const events = timeline.events.filter((e) => e.span_id === spanId);
   const failure = events.find((e) => e.status === "error");
   return (
@@ -245,6 +270,15 @@ function SpanPanel({ timeline, spanId }: { timeline: Timeline; spanId: string | 
               span {span.span_id} · parent {span.parent_span_id ?? "—"} · {span.kind} · {fmtDuration(span.duration_ms)}
             </p>
           </div>
+
+          {cited.length > 0 && (
+            <div className="rounded-md border border-line px-3 py-2" data-testid="span-findings">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted">Cited by findings</p>
+              <ul className="mt-1 space-y-0.5 text-xs">
+                {cited.map((f) => <li key={f.id}><span className="font-mono text-bad">{f.category}</span> · {f.title}</li>)}
+              </ul>
+            </div>
+          )}
 
           {failure && (
             <div role="alert" className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2">
