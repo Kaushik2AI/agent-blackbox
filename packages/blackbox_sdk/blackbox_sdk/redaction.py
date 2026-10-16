@@ -54,6 +54,8 @@ class Redactor:
         return value
 
     def _scrub(self, text: str) -> str:
+        # PostgreSQL text/jsonb cannot hold NUL; a model can emit it.
+        text = text.replace("\x00", "\ufffd")
         for label, pattern in SECRET_VALUE_PATTERNS:
             text, n = pattern.subn(f"[REDACTED:{label}]", text)
             self.count += n

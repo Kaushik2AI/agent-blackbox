@@ -48,3 +48,22 @@ def enqueue_replay(job_id: str) -> None:
         result_ttl=86400,
         failure_ttl=86400,
     )
+
+
+def run_live_job(live_id: str) -> dict[str, str]:
+    """RQ entry point for a live demo run (see app/services/live.py)."""
+    from app.db import session_scope
+    from app.services.live import execute
+
+    return execute(session_scope, get_redis(), live_id)
+
+
+def enqueue_live(live_id: str) -> None:
+    get_queue().enqueue(
+        run_live_job,
+        live_id,
+        job_id=f"live-{live_id}",
+        job_timeout=600,
+        result_ttl=3600,
+        failure_ttl=86400,
+    )

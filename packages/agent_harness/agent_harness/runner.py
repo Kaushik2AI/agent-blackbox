@@ -86,14 +86,19 @@ def run_fixture(
     fixture_id: str,
     model: Model | None = None,
     on_event: EventSink | None = None,
+    message: str | None = None,
 ) -> RunResult:
-    """Run a fixture from scratch. on_event receives every lifecycle event as it happens
-    (the BlackBox SDK hooks in here); it must not raise. "checkpoint" events carry a full,
-    self-describing checkpoint document (see run_from_checkpoint)."""
+    """Run a fixture from scratch. `message` replaces the customer's message (the world,
+    faults and ground truth stay the fixture's). on_event receives every lifecycle event
+    as it happens (the BlackBox SDK hooks in here); it must not raise. "checkpoint" events
+    carry a full, self-describing checkpoint document (see run_from_checkpoint)."""
     fixture = load_fixture(fixture_id)
     model = model or StubModel(fixture.model)
     sandbox = Sandbox.from_fixture(fixture.world, fixture.faults)
-    state = initial_state(fixture.task.model_dump(), fixture.budget.max_tool_calls)
+    task = fixture.task.model_dump()
+    if message is not None:
+        task["message"] = message
+    state = initial_state(task, fixture.budget.max_tool_calls)
     return _execute(fixture, model, sandbox, state, on_event, {}, None)
 
 

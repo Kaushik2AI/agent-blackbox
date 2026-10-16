@@ -47,6 +47,22 @@ trap cleanup EXIT INT TERM
 pids+=($!)
 (cd apps/api && exec python -m rq.cli worker --url "$REDIS_URL" "${RQ_QUEUE_NAME:-blackbox-default}") &
 pids+=($!)
+# Real AI for the live demo (Qwen on this node), if `make qwen-setup` was run.
+QWEN_LINE="Live AI: off (scripted agent only; run 'make qwen-setup' to add Qwen)"
+if [ "${QWEN_LOCAL:-0}" = 1 ]; then
+  QWEN_LOG="${BLACKBOX_DATA_DIR:-$REPO_ROOT/.local-data}/qwen.log"
+  if curl -fsS "http://127.0.0.1:${QWEN_PORT}/health" >/dev/null 2>&1; then
+    QWEN_LINE="Live AI: Qwen already running on port $QWEN_PORT"
+  else
+    # If the server dies (bad model id, out of memory) keep the rest of the stack up.
+    (python infra/scc/qwen_server.py; echo "Qwen server stopped"; exec sleep infinity) \
+      >"$QWEN_LOG" 2>&1 &
+    pids+=($!)
+    QWEN_LINE="Live AI: Qwen loading in the background (1-2 min; log: $QWEN_LOG)"
+  fi
+elif [ -n "${LLM_API_KEY:-}" ]; then
+  QWEN_LINE="Live AI: ${LLM_LABEL:-$LLM_MODEL} via $LLM_BASE_URL"
+fi
 # ---- web: direct access (Desktop/Firefox, laptop) vs. SCC OnDemand VS Code proxy ----
 # The VS Code proxy URL looks like https://<ondemand>/rnode/<host>/<vscode-port>/proxy/<web-port>/
 # and strips that prefix before forwarding, so the app must emit prefixed asset/API URLs.
@@ -77,6 +93,7 @@ cat <<EOF
   ------------------------
   Web UI : $WEB_URL
   API    : http://127.0.0.1:$API_PORT/docs  (from this node only)
+  $QWEN_LINE
   Press Ctrl+C to stop.
 
 EOF

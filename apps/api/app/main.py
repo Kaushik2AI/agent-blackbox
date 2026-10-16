@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import executions, health, ingest, replays
+from app.routers import executions, health, ingest, live, replays
 
 
 def create_app() -> FastAPI:
@@ -28,6 +28,7 @@ def create_app() -> FastAPI:
     app.include_router(ingest.router)
     app.include_router(executions.router)
     app.include_router(replays.router)
+    app.include_router(live.router)
     return app
 
 

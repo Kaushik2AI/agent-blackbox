@@ -17,6 +17,12 @@ CAVEAT = (
     "shows that this change was followed by success in this run; it is not by itself proof "
     "of the root cause."
 )
+CAVEAT_STOCHASTIC = (
+    "Fresh AI decisions: tools, data and everything before the restart point are frozen, "
+    "but the AI model decided again after the change, so another re-run can turn out "
+    "differently. A recovered run shows this change was followed by success once; repeat "
+    "it a few times before treating it as the cause."
+)
 
 
 def _steps(session: Session, execution_id: uuid.UUID) -> dict[int, dict[str, Any]]:
@@ -100,7 +106,7 @@ def _side(session: Session, execution: Execution) -> dict[str, Any]:
             "tool_errors": derived.get("tool_errors"),
             "llm_calls_recorded": llm_calls,
             "duration_ms": round(duration, 3) if duration is not None else None,
-            "tokens": None,
+            "tokens": (attrs.get("usage") or {}).get("total_tokens"),
             "estimated_cost_usd": None,
         },
         "error_codes": derived.get("error_codes", []),
@@ -165,5 +171,5 @@ def build_comparison(session: Session, job: ReplayJob) -> dict[str, Any]:
         if state_diff is not None
         else "final sandbox state not captured for one side (metadata-only run)",
         "outcome_changed": s_side["status"] != f_side["status"],
-        "caveat": CAVEAT,
+        "caveat": CAVEAT if job.replay_mode == "deterministic" else CAVEAT_STOCHASTIC,
     }

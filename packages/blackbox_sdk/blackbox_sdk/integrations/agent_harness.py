@@ -24,7 +24,9 @@ from typing import Any, Protocol
 
 from agent_harness import __version__ as harness_version
 from agent_harness.fixtures import load_fixture
+from agent_harness.graph import EventSink
 from agent_harness.interventions import Intervention
+from agent_harness.model import Model, StubModel
 from agent_harness.runner import RunResult, run_fixture, run_from_checkpoint
 from agent_harness.tools import TOOL_CONTRACT_VERSION
 
@@ -103,6 +105,8 @@ class HarnessTracer:
         self.root: SpanHandle | None = None
         self.open_tool: SpanHandle | None = None
         self.pending_checkpoint: dict[str, Any] | None = None
+        self.tokens_in = 0
+        self.tokens_out = 0
 
     def __call__(self, event_type: str, data: dict[str, Any]) -> None:
         handler = getattr(self, f"_on_{event_type}", None)
@@ -192,8 +196,32 @@ class HarnessTracer:
             payload.update(tool=data["tool"], arguments=rec.capture(data["args"]))
         else:
             payload["reason"] = data["reason"]
-        rec.add_event(span, "llm_call_end", status="ok", operation="chat", payload=payload)
-        rec.end_span(span, "ok")
+        if data.get("note"):
+            # The model's own one-line explanation: content, so captured like arguments.
+            payload["note"] = rec.capture(data["note"])
+        if data.get("unparsed"):
+            payload["unparsed"] = True
+            if data.get("raw_preview"):
+                payload["raw_preview"] = rec.capture(data["raw_preview"])
+        usage = data.get("usage") or {}
+        attributes: dict[str, Any] = {}
+        if usage:
+            attributes["gen_ai.usage.input_tokens"] = usage.get("input_tokens", 0)
+            attributes["gen_ai.usage.output_tokens"] = usage.get("output_tokens", 0)
+            span.attributes.update(attributes)
+            self.tokens_in += int(usage.get("input_tokens", 0))
+            self.tokens_out += int(usage.get("output_tokens", 0))
+        if data.get("latency_ms") is not None:
+            attributes["elapsed_ms"] = data["latency_ms"]
+        rec.add_event(
+            span,
+            "llm_call_end",
+            status="error" if data.get("unparsed") else "ok",
+            operation="chat",
+            attributes=attributes,
+            payload=payload,
+        )
+        rec.end_span(span, "error" if data.get("unparsed") else "ok")
 
     def _on_budget_exhausted(self, data: dict[str, Any]) -> None:
         rec, root = self._require()
@@ -314,6 +342,17 @@ class HarnessTracer:
                 "tool_contract_version": result.tool_contract_version,
                 "capture_policy": rec.capture_policy,
                 "resumed_from_call_index": result.resumed_from_call_index,
+                **(
+                    {
+                        "usage": {
+                            "input_tokens": self.tokens_in,
+                            "output_tokens": self.tokens_out,
+                            "total_tokens": self.tokens_in + self.tokens_out,
+                        }
+                    }
+                    if self.tokens_in or self.tokens_out
+                    else {}
+                ),
                 # Final sandbox content (for original-vs-fork state diffs) only when the
                 # run was recorded with content capture.
                 **({"final_sandbox": result.sandbox_effects} if self.capture_content else {}),
@@ -323,20 +362,44 @@ class HarnessTracer:
         return rec
 
 
+def _tee(tracer: HarnessTracer, sink: EventSink | None) -> EventSink:
+    if sink is None:
+        return tracer
+
+    def both(event_type: str, data: dict[str, Any]) -> None:
+        tracer(event_type, data)
+        try:
+            sink(event_type, data)
+        except Exception:  # noqa: BLE001, S110 - an observer must never break the run
+            pass
+
+    return both
+
+
 def run_traced(
     fixture_id: str,
     exporter: Exporter,
     *,
     capture_content: bool = False,
     project: str = "demo",
+    model: Model | None = None,
+    message: str | None = None,
+    sink: EventSink | None = None,
+    extra_attributes: dict[str, Any] | None = None,
 ) -> tuple[RunResult, list[dict[str, Any]]]:
-    """Run one fixture with tracing; export its batches. Returns (run, ingest responses)."""
+    """Run one fixture with tracing; export its batches. Returns (run, ingest responses).
+    `model` defaults to the fixture's scripted stub; `sink` also receives every harness
+    event as it happens (used for live progress)."""
     fixture = load_fixture(fixture_id)
-    from agent_harness.model import StubModel
-
-    model = StubModel(fixture.model)
-    tracer = HarnessTracer(fixture_id, model.name, capture_content=capture_content, project=project)
-    result = run_fixture(fixture_id, model=model, on_event=tracer)
+    model = model or StubModel(fixture.model)
+    tracer = HarnessTracer(
+        fixture_id,
+        model.name,
+        capture_content=capture_content,
+        project=project,
+        extra_attributes=extra_attributes,
+    )
+    result = run_fixture(fixture_id, model=model, on_event=_tee(tracer, sink), message=message)
     recorder = tracer.finish(result)
     responses = [exporter.export(batch) for batch in recorder.to_batches()]
     return result, responses
@@ -351,13 +414,14 @@ def replay_traced(
     parent_execution_id: str,
     extra_attributes: dict[str, Any],
     project: str = "demo",
+    model: Model | None = None,
+    sink: EventSink | None = None,
 ) -> tuple[RunResult, list[dict[str, Any]]]:
     """Resume a checkpoint as a NEW traced execution (a fork) and export its batches.
-    The fork is always recorded with content capture so it can itself be replayed."""
-    from agent_harness.model import StubModel
-
+    The fork is always recorded with content capture so it can itself be replayed.
+    `model` defaults to the scripted stub; pass the real-model adapter for LLM runs."""
     fixture = load_fixture(document["fixture_id"])
-    model = StubModel(fixture.model)
+    model = model or StubModel(fixture.model)
     tracer = HarnessTracer(
         fixture.fixture_id,
         model.name,
@@ -367,7 +431,7 @@ def replay_traced(
         parent_execution_id=parent_execution_id,
         extra_attributes=extra_attributes,
     )
-    result = run_from_checkpoint(document, interventions, on_event=tracer, model=model)
+    result = run_from_checkpoint(document, interventions, on_event=_tee(tracer, sink), model=model)
     recorder = tracer.finish(result)
     responses = [exporter.export(batch) for batch in recorder.to_batches()]
     return result, responses

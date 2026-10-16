@@ -398,3 +398,103 @@ export const replayApi = {
   comparison: (jobId: string) => apiGet<Comparison>(`/api/v1/replays/${jobId}/comparison`),
   submit: (req: ReplayRequest) => apiPost<ReplayJob>("/api/v1/replays", req),
 };
+
+// ------------------------------------------------------------------ live demo
+export type Brain = "llm" | "scripted";
+
+export type Scenario = {
+  id: string;
+  fixture_id: string;
+  title: string;
+  blurb: string;
+  brains: Brain[];
+  default_message: string;
+  expected: string;
+};
+
+export type LiveConfig = {
+  llm_available: boolean;
+  /** none: no model configured; loading: local model still loading; offline: its server is down. */
+  llm_state: "ready" | "loading" | "offline" | "none";
+  llm_label: string;
+  public_demo: boolean;
+  message_max_chars: number;
+  scenarios: Scenario[];
+};
+
+/** One record streamed by a live run (see apps/api/app/services/live.py). */
+export type LiveStep =
+  | {
+      kind: "decision";
+      action: "tool_call" | "finish";
+      tool: string | null;
+      args: Record<string, unknown> | null;
+      reason: string | null;
+      note: string | null;
+      tokens: { input_tokens: number; output_tokens: number } | null;
+      unparsed: boolean;
+      t_ms: number;
+    }
+  | {
+      kind: "tool";
+      call_index: number;
+      tool: string;
+      args: Record<string, unknown>;
+      ok: boolean;
+      result: Record<string, unknown> | null;
+      error_code: string | null;
+      error: string | null;
+      intervention: string | null;
+      t_ms: number;
+    }
+  | { kind: "budget"; max_tool_calls: number; t_ms: number }
+  | { kind: "end"; termination: string; verifier_passed: boolean; t_ms: number };
+
+export type LiveRun = {
+  live_id: string;
+  status: "queued" | "running" | "done" | "error";
+  scenario: string | null;
+  brain: Brain | null;
+  execution_id: string | null;
+  error: string | null;
+  verifier_passed: boolean | null;
+  steps: LiveStep[];
+  next: number;
+};
+
+export type SuggestedFix =
+  | { available: false; reason: string }
+  | {
+      available: true;
+      label: string;
+      explanation: string;
+      call_index: number;
+      tool: string;
+      before: Record<string, unknown>;
+      request: {
+        source_execution_id: string;
+        checkpoint_id: string;
+        intervention: {
+          type: "replace_tool_argument" | "replace_tool_result";
+          target_span_id: string;
+          arguments?: Record<string, unknown>;
+          result?: Record<string, unknown>;
+        };
+      };
+    };
+
+export const liveApi = {
+  config: () => apiGet<LiveConfig>("/api/v1/live/config"),
+  start: (body: { scenario: string; brain: Brain; message?: string }) =>
+    apiPost<LiveRun>("/api/v1/live-runs", body),
+  poll: (id: string, after: number) => apiGet<LiveRun>(`/api/v1/live-runs/${id}`, { after }),
+  suggestedFix: (executionId: string) =>
+    apiGet<SuggestedFix>(`/api/v1/executions/${executionId}/suggested-fix`),
+  replay: (fix: Extract<SuggestedFix, { available: true }>, key: string) =>
+    apiPost<ReplayJob>("/api/v1/replays", {
+      ...fix.request,
+      mode: "deterministic",
+      sandbox: "fixture_only",
+      idempotency_key: key,
+    }),
+};

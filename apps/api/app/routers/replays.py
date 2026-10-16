@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.contracts import ReplayJobOut, ReplayRequest
 from app.db import get_session
-from app.jobs import enqueue_replay
+from app.jobs import enqueue_replay, get_redis
 from app.models import (
     AnalysisFinding,
     Checkpoint,
@@ -24,6 +24,7 @@ from app.models import (
     ReplayStatus,
     Span,
 )
+from app.services import ratelimit
 from app.services.checkpoints import load_and_check
 from app.services.comparison import build_comparison
 from app.services.replay import ReplayRejected, create_replay, job_out
@@ -161,13 +162,30 @@ def get_checkpoints(execution_id: uuid.UUID, session: SessionDep) -> list[Checkp
     status_code=202,
     responses={200: {"model": ReplayJobOut}, 422: {}},
 )
-def post_replay(req: ReplayRequest, response: Response, session: SessionDep) -> ReplayJobOut:
+def post_replay(
+    req: ReplayRequest, request: Request, response: Response, session: SessionDep
+) -> ReplayJobOut:
+    settings = get_settings()
     try:
         job, created = create_replay(session, req)
     except ReplayRejected as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, {"reasons": exc.reasons}
         ) from None
+    if created and settings.public_demo:
+        live_model = job.replay_mode == "controlled_stochastic"
+        try:
+            ratelimit.check(
+                get_redis(),
+                ratelimit.client_ip(request),
+                per_ip_per_hour=settings.live_runs_per_ip_per_hour if live_model else 60,
+                llm=live_model,
+                llm_per_day=settings.live_llm_runs_per_day,
+            )
+        except ratelimit.RateLimited as exc:
+            session.delete(job)
+            session.commit()
+            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, exc.message) from None
     if created:
         enqueue_replay(str(job.id))
     else:

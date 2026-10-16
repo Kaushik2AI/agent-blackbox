@@ -52,6 +52,15 @@ compose-up: ## (Docker only) start Postgres + Redis containers
 compose-down: ## (Docker only) stop containers (add -v manually to delete data)
 	docker compose down
 
+# ---------------------------------------------------------------- live AI (Qwen)
+.PHONY: qwen-setup qwen qwen-status
+qwen-setup: ## One-time: install PyTorch + Qwen for the live demo (runs on this node)
+	bash infra/scc/qwen_setup.sh
+qwen: ## Run only the local Qwen server in this terminal (make dev already starts it)
+	python infra/scc/qwen_server.py
+qwen-status: ## Is the local Qwen server loading / ready?
+	@curl -fsS "http://127.0.0.1:$${QWEN_PORT:-8001}/health" && echo || echo "Qwen server is not running (start it with make dev)"
+
 # ---------------------------------------------------------------- run
 .PHONY: migrate
 migrate: ## Apply database migrations

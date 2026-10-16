@@ -10,10 +10,12 @@ test("find the real invalid-inventory-argument failure and inspect the failing s
   // Keyboard path: focus the row and open it with Enter.
   await row.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: "invalid_inventory_argument" })).toBeVisible();
-  await expect(page.getByText("budget_exhausted").first()).toBeVisible();
+  await expect(page.getByTestId("run-title")).toBeVisible();
+  // Plain-language step list first; the failing step says why it was rejected.
+  await expect(page.locator('[data-testid=tape-step][data-error="SKU_REQUIRED"]').first()).toContainText("product code");
 
-  // Click the exact failing tool span in the graph.
+  // The raw trace is one click away: open it and click the failing tool span in the graph.
+  await page.getByTestId("tab-trace").click();
   const failing = page.locator('[data-testid=graph-node][data-error="SKU_REQUIRED"]').first();
   await expect(failing).toBeVisible();
   await failing.click();
@@ -25,9 +27,9 @@ test("find the real invalid-inventory-argument failure and inspect the failing s
   await expect(inspector).toContainText("validation_error");
 });
 
-test("overview numbers come from the API, not placeholders", async ({ page, request }) => {
-  await page.goto("./");
-  await expect(page.getByTestId("kpis")).toBeVisible();
+test("run counts come from the API, not placeholders", async ({ page, request }) => {
+  await page.goto("runs");
+  await expect(page.getByTestId("kpis")).toContainText("recorded");
   const api = await request.get("backend/api/v1/overview");
   const data = await api.json();
   await expect(page.getByTestId("kpis")).toContainText(String(data.total));

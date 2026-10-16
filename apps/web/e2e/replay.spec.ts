@@ -17,6 +17,8 @@ async function findRun(request: APIRequestContext, capture: "content" | "metadat
 test("flagship: fix the SKU argument from a checkpoint and get a verifier-confirmed fork", async ({ page, request }) => {
   const id = await findRun(request, "content");
   await page.goto(`runs/${id}`);
+  await expect(page.getByTestId("root-cause")).toContainText("Wrong input to the stock check");
+  await page.getByTestId("tab-evidence").click();
   await expect(page.getByTestId("finding").first()).toBeVisible();
   await expect(page.locator('[data-testid=finding][data-category="tool_schema_mismatch"]')).toBeVisible();
 
@@ -24,13 +26,15 @@ test("flagship: fix the SKU argument from a checkpoint and get a verifier-confir
   await expect(page.getByRole("heading", { name: "Replay Studio" })).toBeVisible();
   const cp1 = page.locator('[data-testid=checkpoint-option][data-step="1"]');
   await expect(cp1.locator("input")).toBeChecked();
-  await expect(cp1).toContainText("lookup_inventory");
+  await expect(cp1).toContainText("Check stock");
+  // The raw JSON editor is the Technical view of the change panel.
+  await page.getByTestId("view-mode").getByText("Technical view").click();
 
   const editor = page.getByTestId("intervention-editor");
   await expect(editor).toHaveValue(/product_name/);
   await editor.fill('{"sku": "SKU-RED-004"}');
+  await expect(page.getByTestId("replay-summary")).toContainText("remove product_name");
   await page.getByTestId("replay-submit").click();
-  await page.getByTestId("replay-confirm").click();
 
   await expect(page.getByTestId("replay-job")).toHaveAttribute("data-status", "succeeded", { timeout: 30_000 });
   await expect(page.getByTestId("fork-verdict")).toContainText("passed");
@@ -40,6 +44,7 @@ test("flagship: fix the SKU argument from a checkpoint and get a verifier-confir
   await expect(page.getByTestId("fork-outcome").getByTestId("verifier")).toHaveText("passed");
   await expect(page.getByTestId("steps")).toContainText("SKU_REQUIRED");
   await expect(page.getByTestId("steps")).toContainText("SKU-RED-004");
+  await page.getByTestId("comparison-tech").locator("summary").click();
   await expect(page.getByTestId("state-diff")).toContainText("added");
 });
 
@@ -48,5 +53,5 @@ test("runs without captured state cannot be replayed: controls are disabled", as
   await page.goto(`runs/${id}/replay`);
   await expect(page.getByTestId("replay-unavailable")).toBeVisible();
   await expect(page.getByTestId("replay-unavailable")).toContainText("metadata-only");
-  await expect(page.getByRole("button", { name: "Run replay" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Start re-run" })).toBeDisabled();
 });

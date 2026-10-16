@@ -96,7 +96,8 @@ def test_overview_counts_real_runs(client: TestClient) -> None:
         after["failure_tags"]["SKU_REQUIRED"] - before["failure_tags"].get("SKU_REQUIRED", 0) == 1
     )
     assert after["median_duration_ms"] is not None
-    assert after["total_tokens"] is None  # the stub model reports no token usage
+    # The stub model reports no token usage (other tests may have stored real-model runs).
+    assert after["total_tokens"] == before["total_tokens"]
 
 
 def test_unknown_execution_is_404_and_bad_id_422(client: TestClient) -> None:

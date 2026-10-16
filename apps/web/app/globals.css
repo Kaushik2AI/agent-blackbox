@@ -1,14 +1,89 @@
 @import "tailwindcss";
 
+/*
+ * FlightPath design tokens (docs/design/flightpath-redesign.md, section 6).
+ * The UI itself is neutral. Colour is reserved for meaning:
+ *   context (blue)  situation, what was sent, your change
+ *   ai (purple)     the model's reasoning, tokens
+ *   ok / warn / bad success, warning, failure
+ *   fg-3 (grey)     secondary or hidden detail
+ */
 @theme {
-  --color-ink: #0b0d10;
-  --color-panel: #12161b;
-  --color-line: #232a33;
-  --color-muted: #8b96a3;
-  --color-ok: #3fb950;
-  --color-warn: #d29922;
-  --color-bad: #f85149;
-  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --color-canvas: #f4f5f8;
+  --color-surface: #ffffff;
+  --color-well: #edeff3;
+  --color-line: #e0e3ea;
+  --color-line-strong: #c9ced8;
+  --color-fg: #151a24;
+  --color-fg-2: #485063;
+  --color-fg-3: #737b8e;
+
+  --color-context: #2160c4;
+  --color-context-tint: #eaf1fc;
+  --color-ai: #6a3bd2;
+  --color-ai-tint: #f1ecfc;
+  --color-ok: #11774a;
+  --color-ok-tint: #e6f4ec;
+  --color-warn: #ad5208;
+  --color-warn-tint: #fcf0e3;
+  --color-bad: #c4302a;
+  --color-bad-tint: #fbeae9;
+
+  /* Older names still used by a few components (graph, status page). */
+  --color-paper: #f4f5f8;
+  --color-panel: #ffffff;
+  --color-ink: #edeff3;
+  --color-muted: #5b6377;
+  --color-signal: #2160c4;
+  --color-signal-ink: #1b4f9f;
+
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --radius-pill: 999px;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-stage: 16px;
 }
 
-html, body { background: var(--color-ink); color: #e6edf3; }
+html, body {
+  background: var(--color-canvas);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.47;
+}
+
+/* Instrument-panel numerals: the condensed cut of the same family. */
+.num {
+  font-stretch: 82%;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
+
+::selection { background: #cfe0fb; }
+
+:focus-visible { outline: 2px solid var(--color-context); outline-offset: 2px; }
+
+/* Horizontal flight path: scroll, but quietly. */
+.path-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+  scroll-snap-type: x proximity;
+}
+.path-scroll > * { scroll-snap-align: start; }
+
+@keyframes rec-pulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+.rec-dot { animation: rec-pulse 1.1s ease-in-out infinite; }
+
+/* The one motion moment: a waypoint lands on the path while a run is recorded. */
+@keyframes land { from { opacity: 0; transform: translateX(-10px) } to { opacity: 1; transform: none } }
+.land { animation: land 260ms cubic-bezier(.2,.7,.2,1) both; }
+
+@keyframes step-in { from { opacity: 0 } to { opacity: 1 } }
+.step-in { animation: step-in 200ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rec-dot, .land, .step-in { animation: none; }
+}

@@ -21,6 +21,7 @@ from agent_harness.interventions import (
     ReplaceToolResult,
     validate_intervention,
 )
+from agent_harness.llm import ModelUnavailable
 from blackbox_sdk.exporters import MemoryExporter
 from blackbox_sdk.integrations.agent_harness import replay_traced
 from sqlalchemy import delete, select
@@ -31,6 +32,7 @@ from app.contracts import EventBatch, ReplayJobOut, ReplayRequest
 from app.models import Checkpoint, Event, Execution, ReplayJob, ReplayStatus, Span
 from app.services.checkpoints import load_and_check
 from app.services.ingest import ingest_batch
+from app.services.llm import build_llm, llm_hosts, llm_model_name, llm_status
 from app.services.sandbox_guard import SandboxViolation, no_network
 
 SANDBOX = {"type": "fixture_only", "network": "blocked", "tools": "allowlisted simulated tools"}
@@ -146,17 +148,29 @@ def create_replay(session: Session, req: ReplayRequest) -> tuple[ReplayJob, bool
     if not eligibility.eligible or eligibility.document is None:
         raise ReplayRejected(["checkpoint is not replayable: " + "; ".join(eligibility.reasons)])
     model = str(eligibility.document.get("model_name", ""))
-    if req.mode == "controlled_stochastic":
-        raise ReplayRejected(
-            [
-                f"controlled_stochastic replay needs a real model adapter; this run used {model!r} "
-                "(deterministic stub). Real-model replays arrive with the SCC adapter (M9)."
-            ]
-        )
-    if not model.startswith("stub"):
-        raise ReplayRejected(
-            [f"deterministic replay is only defined for the stub model, not {model}"]
-        )
+    if model.startswith("llm:"):
+        # Real model: the suffix gets fresh inference, so the replay is
+        # controlled_stochastic whatever the client asked for.
+        if llm_status()[0] != "ready":
+            raise ReplayRejected(
+                ["this run used a live AI model, which is not available on this server right now"]
+            )
+        if model != llm_model_name():
+            raise ReplayRejected(
+                [f"this run used {model}; this server now runs {llm_model_name()}"]
+            )
+        mode = "controlled_stochastic"
+    elif model.startswith("stub"):
+        if req.mode == "controlled_stochastic":
+            raise ReplayRejected(
+                [
+                    f"this run used the scripted agent ({model}), whose replays are "
+                    "deterministic; request mode 'deterministic'"
+                ]
+            )
+        mode = "deterministic"
+    else:
+        raise ReplayRejected([f"no replay support for model {model!r}"])
     record = resolve_intervention(session, req, checkpoint)
 
     job = ReplayJob(
@@ -165,7 +179,7 @@ def create_replay(session: Session, req: ReplayRequest) -> tuple[ReplayJob, bool
         fork_execution_id=uuid.uuid4(),
         intervention_json=record,
         sandbox_config_json={**SANDBOX, "freeze": req.freeze},
-        replay_mode=req.mode,
+        replay_mode=mode,
         status=ReplayStatus.QUEUED,
         idempotency_key=key,
         attempts=0,
@@ -243,7 +257,10 @@ def execute_job(session: Session, job_id: uuid.UUID) -> ReplayJob:
             session.commit()
 
         exporter = MemoryExporter()
-        with no_network(incidents):
+        live_model = job.replay_mode == "controlled_stochastic"
+        model = build_llm() if live_model else None
+        # Only the model API stays reachable for real-model replays; nothing for scripted.
+        with no_network(incidents, allow=llm_hosts() if live_model else None):
             run, _ = replay_traced(
                 eligibility.document,
                 _to_intervention(job.intervention_json),
@@ -260,6 +277,7 @@ def execute_job(session: Session, job_id: uuid.UUID) -> ReplayJob:
                         "sandbox": job.sandbox_config_json,
                     }
                 },
+                model=model,
             )
         settings = get_settings()
         for batch in exporter.batches:
@@ -282,9 +300,13 @@ def execute_job(session: Session, job_id: uuid.UUID) -> ReplayJob:
         session.rollback()
         job = session.get(ReplayJob, job_id, with_for_update=True) or job
         job.status = ReplayStatus.FAILED
-        job.error = (
-            f"isolation incident: {incidents[0]}" if incidents else f"{type(exc).__name__}: {exc}"
-        )[:2000]
+        if incidents:
+            job.error = f"isolation incident: {incidents[0]}"
+        elif isinstance(exc, ModelUnavailable):
+            job.error = f"The AI model is unavailable: {exc}"
+        else:
+            job.error = f"{type(exc).__name__}: {exc}"
+        job.error = job.error[:2000]
         job.result_json = {"isolation_incidents": len(incidents)}
     job.finished_at = datetime.now(UTC)
     session.commit()

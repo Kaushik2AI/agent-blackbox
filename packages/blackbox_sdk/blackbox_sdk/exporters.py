@@ -50,8 +50,11 @@ class HttpExporter:
         retries: int = 4,
         backoff_s: float = 0.25,
         timeout_s: float = 10.0,
+        token: str | None = None,
     ) -> None:
         self.url = base_url.rstrip("/") + "/api/v1/events:batch"
+        # Public deployments only accept batches carrying the ingest token.
+        self.headers = {"x-ingest-token": token} if token else {}
         self.client = client or httpx.Client(timeout=timeout_s)
         self.retries = retries
         self.backoff_s = backoff_s
@@ -60,7 +63,7 @@ class HttpExporter:
         last: str = ""
         for attempt in range(self.retries + 1):
             try:
-                resp = self.client.post(self.url, json=batch)
+                resp = self.client.post(self.url, json=batch, headers=self.headers)
             except httpx.TransportError as exc:
                 last = f"{type(exc).__name__}: {exc}"
             else:

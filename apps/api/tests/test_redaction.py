@@ -40,3 +40,9 @@ def test_secret_shaped_values_are_masked_anywhere() -> None:
         "ok",
     ]
     assert r.count == 4
+
+
+def test_nul_characters_never_reach_postgres() -> None:
+    from app.redaction import Redactor
+
+    assert Redactor()({"raw": "ab\x00cd"}) == {"raw": "ab�cd"}

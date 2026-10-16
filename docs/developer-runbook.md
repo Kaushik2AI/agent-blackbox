@@ -141,3 +141,21 @@ direct and VS Code proxy modes. If Chromium will not start on SCC, set
     "intervention": {"type": "replace_tool_argument", "target_span_id": "<that call span>",
                      "field": "sku", "value": "SKU-RED-004", "remove_fields": ["product_name"]}}'
   ```
+
+## Live demo with a real model (Qwen on SCC)
+
+```bash
+make qwen-setup      # once per venv (re-run in a GPU session to switch to GPU PyTorch)
+make dev             # starts infra/scc/qwen_server.py too; log: .local-data/qwen.log
+make qwen-status     # {"status": "loading" | "ready" | "error", "model": ..., "device": ...}
+```
+
+- `qwen_server.py` is a small OpenAI-compatible server (transformers) bound to 127.0.0.1
+  with a random bearer token from `.env`. The app treats it like any hosted API.
+- While the model loads, the home page shows "Warming up" and enables **Live AI** when it
+  is ready. If the server is down, Live AI is disabled and the scripted agent still works.
+- Generation stops at the first complete JSON object (the agent's action format).
+- Runs record the real model id (e.g. `llm:Qwen/Qwen2.5-1.5B-Instruct`); replays of such a
+  run are `controlled_stochastic` and are refused if a different model is loaded now.
+- To use a hosted API instead, set `QWEN_LOCAL=0` and point `LLM_BASE_URL`/`LLM_API_KEY`/
+  `LLM_MODEL` at it.

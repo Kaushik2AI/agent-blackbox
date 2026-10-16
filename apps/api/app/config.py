@@ -47,6 +47,25 @@ class Settings(BaseSettings):
     # "*" = all (single-user local dev). Real per-user auth arrives in M10.
     findings_allowed_projects: Annotated[list[str], NoDecode] = ["*"]
 
+    # ---- Live demo: the real model (any OpenAI-compatible endpoint; default Qwen on
+    # OpenRouter). Without LLM_API_KEY the live page offers only the scripted agent.
+    llm_base_url: str = "https://openrouter.ai/api/v1"
+    llm_api_key: str = ""
+    llm_model: str = "qwen/qwen3-30b-a3b-instruct-2507"
+    llm_label: str = "Qwen3 30B"
+    llm_temperature: float = 0.2
+    llm_max_tokens: int = 400
+    llm_timeout_s: float = 45.0
+
+    # ---- Public deployment guards.
+    # public_demo=true: ingest needs INGEST_TOKEN, and real-model runs/replays are rate
+    # limited per client IP and per day (they cost money).
+    public_demo: bool = False
+    ingest_token: str = ""
+    live_runs_per_ip_per_hour: int = 12
+    live_llm_runs_per_day: int = 300
+    live_message_max_chars: int = 500
+
     @field_validator("findings_allowed_projects", mode="before")
     @classmethod
     def _split_projects(cls, value: object) -> object:

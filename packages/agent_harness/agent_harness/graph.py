@@ -77,20 +77,34 @@ def build_graph(
     def model_node(state: AgentState) -> dict[str, Any]:
         action = model.next_action(dict(state))
         turns = state["model_turns"] + 1
+        # Real-model adapters expose details of the last decision (note, token usage,
+        # latency); the scripted stub has none.
+        info: dict[str, Any] = dict(getattr(model, "last_call", None) or {})
+        note = str(info.get("note") or "")
         if isinstance(action, Finish):
             emit(
-                "model_decision", {"model": model.name, "action": "finish", "reason": action.reason}
+                "model_decision",
+                {"model": model.name, "action": "finish", "reason": action.reason, **info},
             )
             return {"pending": None, "termination": action.reason, "model_turns": turns}
         assert isinstance(action, ToolCall)
         emit(
             "model_decision",
-            {"model": model.name, "action": "tool_call", "tool": action.tool, "args": action.args},
+            {
+                "model": model.name,
+                "action": "tool_call",
+                "tool": action.tool,
+                "args": action.args,
+                **info,
+            },
         )
         if state["tool_calls"] >= state["max_tool_calls"]:
             emit("budget_exhausted", {"max_tool_calls": state["max_tool_calls"]})
             return {"pending": None, "termination": "budget_exhausted", "model_turns": turns}
-        return {"pending": {"tool": action.tool, "args": action.args}, "model_turns": turns}
+        pending: dict[str, Any] = {"tool": action.tool, "args": action.args}
+        if note:
+            pending["note"] = note
+        return {"pending": pending, "model_turns": turns}
 
     def tool_node(state: AgentState) -> dict[str, Any]:
         call = state["pending"]
@@ -123,6 +137,8 @@ def build_graph(
         emit("tool_call_start", {"call_index": index, "tool": call["tool"], "args": args})
         start = time.perf_counter()
         step: dict[str, Any] = {"call_index": index, "tool": call["tool"], "args": args}
+        if call.get("note"):
+            step["note"] = call["note"]
         if intervention is not None:
             step["intervention"] = intervention.type
         observations = {**state["observations"]}

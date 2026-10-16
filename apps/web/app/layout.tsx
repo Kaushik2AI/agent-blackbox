@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
+// Fonts are bundled (no request to Google), so the page looks the same offline, on SCC
+// and on the public demo.
+import "@fontsource-variable/instrument-sans/wdth.css";
+import "@fontsource-variable/jetbrains-mono/index.css";
 import "./globals.css";
 import { Nav } from "@/components/nav";
 
 export const metadata: Metadata = {
-  title: "Agent BlackBox",
-  description: "Flight recorder, debugger and recovery studio for AI agents",
+  title: "FlightPath: the flight recorder for AI agents",
+  description:
+    "Watch an AI agent work step by step. When it fails, see the step that broke, why, and re-run it with one change.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

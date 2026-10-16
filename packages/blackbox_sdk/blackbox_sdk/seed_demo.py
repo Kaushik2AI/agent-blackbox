@@ -32,7 +32,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--capture-content", action="store_true")
     args = parser.parse_args(argv)
 
-    exporter: Exporter = JsonlExporter(args.jsonl) if args.jsonl else HttpExporter(args.api)
+    exporter: Exporter = (
+        JsonlExporter(args.jsonl)
+        if args.jsonl
+        else HttpExporter(args.api, token=os.environ.get("INGEST_TOKEN") or None)
+    )
     fixtures = args.fixtures.split(",") if args.fixtures else list_fixtures()
     target = args.jsonl or args.api
     print(

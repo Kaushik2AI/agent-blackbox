@@ -1,6 +1,7 @@
-# Agent BlackBox
+# FlightPath
 
-**A flight recorder, debugger and recovery studio for AI agents.**
+**The flight recorder for AI agents.** (Repository: `agent-blackbox`.)
+A recorder, debugger and recovery studio for AI agents.
 Inspect every step of an agent run, fork from a saved checkpoint, change one condition
 safely, replay the rest in a sandbox, and compare the outcome against a ground-truth
 verifier.
@@ -13,6 +14,12 @@ verifier.
 > one validated intervention; and a dashboard with an execution inspector, Replay Studio
 > and original-vs-fork comparison. Benchmarking (M8), real-model runs on SCC (M9) and
 > hardening/auth (M10) are not built yet.
+
+## The interface
+
+See [docs/design/flightpath-redesign.md](docs/design/flightpath-redesign.md): a horizontal
+flight path per run, root cause kept apart from its symptoms, Simple and Technical views,
+and a guided Replay Studio.
 
 ## Why this exists
 
@@ -48,6 +55,19 @@ git clone https://github.com/<you>/agent-blackbox.git && cd agent-blackbox
 make setup-scc     # Python venv + pip-installed Postgres/Redis/Node, random-password .env, migrations
 make dev           # API + worker + web; prints the URL to open
 ```
+
+Optional, for the **Live AI** agent on the home page (a real Qwen model on your SCC node):
+
+```bash
+make qwen-setup    # once: PyTorch + transformers + a Qwen2.5 model, then a one-question self-test
+make dev           # now also starts the Qwen server ("Live AI: Qwen loading..." for 1-2 min)
+```
+
+It picks the model size from the node: Qwen2.5-3B on a GPU with 12 GB+, 1.5B on a smaller
+GPU or a CPU node with 10 GB+ free RAM, otherwise 0.5B. Weights and pip downloads stay
+inside the repo (`.cache/`), not your home quota. Force one with
+`QWEN_MODEL=Qwen/Qwen2.5-3B-Instruct make qwen-setup`. On a CPU node expect roughly
+10-20 s per AI step.
 
 ### On a laptop with Docker
 
