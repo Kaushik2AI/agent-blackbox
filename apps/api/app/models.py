@@ -274,3 +274,31 @@ class ReplayJob(Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class EvaluationRun(Base):
+    """One benchmark run (M8/M9), imported from a results folder's runs.jsonl.
+
+    `source` groups the runs of one benchmark run (benchmark, model, revision, seed), so a
+    CPU scripted run and a GPU real-model run sit side by side. `record_json` keeps the
+    full validated record; the columns are what the dashboard filters on.
+    """
+
+    __tablename__ = "evaluation_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_key: Mapped[str] = mapped_column(String(64), unique=True)
+    source: Mapped[str] = mapped_column(String(64), index=True)
+    benchmark_version: Mapped[str] = mapped_column(String(64))
+    case_id: Mapped[str] = mapped_column(String(128))
+    family: Mapped[str] = mapped_column(String(64))
+    split: Mapped[str] = mapped_column(String(16))
+    arm: Mapped[str] = mapped_column(String(16))
+    model_spec: Mapped[str] = mapped_column(String(200))
+    model_id: Mapped[str] = mapped_column(String(200))
+    passed: Mapped[bool]
+    execution_id: Mapped[uuid.UUID | None]
+    record_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

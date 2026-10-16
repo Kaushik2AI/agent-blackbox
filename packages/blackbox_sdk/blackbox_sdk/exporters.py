@@ -29,7 +29,7 @@ class MemoryExporter:
 
 
 class JsonlExporter:
-    """Append batches to a JSONL file (offline runs, e.g. SCC batch jobs in M9)."""
+    """Append batches to a JSONL file (offline runs, e.g. GPU batch jobs)."""
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)

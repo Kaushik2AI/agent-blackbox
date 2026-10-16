@@ -35,7 +35,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
     readiness_timeout_s: float = 2.0
-    # Ingestion limits (blueprint §13): whole request, and each stored payload/attribute map.
+    # Ingestion limits: whole request, and each stored payload/attribute map.
     max_ingest_bytes: int = 2_000_000
     max_event_payload_bytes: int = 32_768
     # Where checkpoint states (and later other artifacts) are written. Defaults inside the

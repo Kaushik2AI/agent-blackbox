@@ -1,4 +1,4 @@
-"""Agent BlackBox SDK (M3)."""
+"""FlightPath SDK (M3)."""
 
 from blackbox_sdk.exporters import HttpExporter, JsonlExporter, MemoryExporter
 from blackbox_sdk.recorder import Recorder, Resource, SpanHandle

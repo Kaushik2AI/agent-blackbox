@@ -4,7 +4,7 @@
 > `apps/api/app/services/replay.py` orchestration, Replay Studio UI). Notes on what the
 > implementation does are marked **Implemented:**.
 
-This document defines what Agent BlackBox means by "replay". Anything that does not meet
+This document defines what FlightPath means by "replay". Anything that does not meet
 these rules must not be labelled replay in code, API or UI.
 
 ## 1. Three capability levels (kept separate in code and UI)

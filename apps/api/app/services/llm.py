@@ -82,7 +82,7 @@ def build_llm(settings: Settings | None = None) -> OpenAICompatModel:
     headers = {}
     if "openrouter.ai" in settings.llm_base_url:
         # Optional attribution headers OpenRouter documents for app listings.
-        headers = {"X-Title": "Agent BlackBox demo"}
+        headers = {"X-Title": "FlightPath demo"}
     return OpenAICompatModel(
         LLMConfig(
             base_url=settings.llm_base_url,

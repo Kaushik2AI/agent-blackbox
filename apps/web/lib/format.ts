@@ -1,7 +1,7 @@
 /** Small formatting and URL helpers shared by the dashboard. */
 
 /**
- * In-app link. When the app is served behind a path-stripping proxy (SCC OnDemand VS Code),
+ * In-app link. When the app is served behind a path-stripping proxy (e.g. a browser-based VS Code port proxy),
  * NEXT_PUBLIC_BASE_PATH holds the browser-visible prefix; plain <a href> links built with
  * this helper keep working there, where client-side router links would not.
  */

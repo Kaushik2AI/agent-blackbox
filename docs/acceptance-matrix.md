@@ -2,7 +2,7 @@
 
 ## User-story matrix
 
-| # | User story (blueprint §1) | Acceptance test(s) | Milestone | Status |
+| # | User story | Acceptance test(s) | Milestone | Status |
 |---|---|---|---|---|
 | — | Platform is up and honest about its health | `test_healthz_is_dependency_free`, `test_readyz_reports_real_failures` (503 when deps down, no secrets in body), `test_readyz_ready_when_services_up_and_migrated`, web `checkConnectivity` unit tests + live smoke through Next.js proxy | M1 | ✅ |
 | — | Schema is real and migratable | `test_migration_creates_expected_tables`, `test_foreign_keys_are_enforced`, `test_execution_cannot_be_its_own_parent`, `test_downgrade_then_upgrade_is_clean` | M1 | ✅ |
@@ -14,23 +14,23 @@
 | 4 | Save/fetch pre-step checkpoints and replay | `test_checkpoint_hash_mismatch_makes_it_ineligible`, `test_plain_checkpoint_replay_reproduces_the_original`, `test_flagship_fix_recovers_the_run_and_source_stays_immutable` (row fingerprint before == after), harness `test_replay.py` | M6 | ✅ |
 | 5 | Apply one explicit intervention | `test_invalid_replay_requests_are_rejected` (schema, before checkpoint, non-tool span, bad result, stochastic mode, foreign checkpoint), `test_replace_tool_result_recovers_persistent_timeout`, `test_forbidden_network_access_fails_the_replay`, `test_crashed_attempt_is_cleaned_up_and_retried`, `test_same_idempotency_key_returns_the_same_job` | M6 | ✅ |
 | 6 | Compare original vs replay | Comparison asserted in `test_flagship_fix...` (intervention record, first divergence, intervened step, state diff); Playwright `e2e/replay.spec.ts` flagship flow + disabled controls without checkpoints | M7 | ✅ |
-| 7 | Run a fixed benchmark and export evidence | One command regenerates JSONL/CSV + charts; metric-math regression tests | M8 | 🚧 |
-| — | Run real model on SCC GPU | `qsub` script lints; manifest has job ID/model revision/seed; importer dedupes | M9 | 🚧 |
+| 7 | Run a fixed benchmark and export evidence | `make benchmark` rebuilds runs.jsonl/CSV/summary/charts from scratch; `test_evaluation.py`: dataset drift, every case fails for its intended reason, Wilson interval reference values, denominators, reproducibility, resume without duplicates; API `test_evaluations_api.py`; Playwright `e2e/benchmark.spec.ts` | M8 | ✅ |
+| — | Run a real model on a GPU | Job scripts (Grid Engine, Slurm) pass shellcheck; the full path (environment check, transformers model, seeds, resumable manifest with job id/model revision/versions, import with dedupe and secret rejection) ran end to end on CPU with a small model | M9 | ✅ built, GPU run pending |
 
 ## Milestone exit gates
 
 | Milestone | Gate (must be demonstrated, not claimed) |
 |---|---|
 | M0 | Docs consistent with blueprint scope; replay levels, privacy and limitations explicit; every later milestone has a testable exit |
-| M1 | Fresh setup (`make setup-scc` or compose) starts; `/readyz` ready; migrations apply; `make check` passes |
+| M1 | Fresh setup (`make setup` or compose) starts; `/readyz` ready; migrations apply; `make check` passes |
 | M2 ✅ | 3 fixtures (success, invalid SKU argument, transient timeout) give expected verifier results 10/10 times in stub mode — delivered with 5 fixtures; `make demo`, `make test-harness` |
 | M3 ✅ | Agent run persists correct, deduplicated trace rows; redaction tests pass — `make test-api`, `make test-sdk` |
-| M4 ✅ | Real failed run opened in UI; exact failing span clickable; no hardcoded data — `make test-e2e` (also verified through the SCC VS Code proxy path) |
+| M4 ✅ | Real failed run opened in UI; exact failing span clickable; no hardcoded data — `make test-e2e` (also verified through a web-IDE port proxy) |
 | M5 ✅ | Findings link to raw events; confusion matrix reproducible from labelled fixtures — `make test-analysis`, `make eval-detectors` |
 | M6 ✅ | Real resumed execution on a fork; source byte-identical at domain level; sandbox tests pass — `make test-api` (`test_replay_api.py`), harness `test_replay.py` |
 | M7 ✅ | Flagship browser demo end-to-end with real worker — `make test-e2e` (`e2e/replay.spec.ts`) |
-| M8 | One documented command rebuilds benchmark artifacts and charts |
-| M9 | SCC job submitted on a GPU and imported, or unverified parts documented |
+| M8 ✅ | One documented command rebuilds benchmark artifacts and charts — `make benchmark` |
+| M9 | GPU job submitted and imported, or unverified parts documented — built and smoke-tested on CPU; GPU run pending (docs/benchmark.md) |
 | M10 | Fresh-clone quickstart works; CI green; demo script matches the live app |
 
 ## MVP boundary

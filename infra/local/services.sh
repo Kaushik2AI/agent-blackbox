@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Start/stop/status for the local Postgres + Redis used in development (no Docker).
 #
-#   bash infra/scc/services.sh start | stop | status
+#   bash infra/local/services.sh start | stop | status
 #
-# Both services listen on 127.0.0.1 only and require a password from .env, because SCC
-# compute nodes are shared with other users. Data lives in $BLACKBOX_DATA_DIR and
-# survives the end of an OnDemand session; the processes do not, so run `start` again
+# Both services listen on 127.0.0.1 only and require a password from .env, because
+# a server may be shared with other users. Data lives in $BLACKBOX_DATA_DIR and
+# survives the end of a login session; the processes do not, so run `start` again
 # in each new session (`make dev` does this for you).
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
-[ -f "$ENV_FILE" ] || { echo "No .env found. Run: bash infra/scc/setup_scc.sh" >&2; exit 1; }
+[ -f "$ENV_FILE" ] || { echo "No .env found. Run: bash infra/local/setup.sh" >&2; exit 1; }
 set -a; # shellcheck disable=SC1090
 source "$ENV_FILE"; set +a
 
@@ -30,10 +30,10 @@ pg_running() { pg_ctl -D "$PG_DATA" status >/dev/null 2>&1; }
 redis_running() { redis-cli -h 127.0.0.1 -p "$REDIS_PORT" --no-auth-warning -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG; }
 
 start_pg() {
-  [ -f "$PG_DATA/PG_VERSION" ] || { echo "Postgres not initialised. Run: bash infra/scc/setup_scc.sh" >&2; exit 1; }
+  [ -f "$PG_DATA/PG_VERSION" ] || { echo "Postgres not initialised. Run: bash infra/local/setup.sh" >&2; exit 1; }
   if pg_running; then echo "postgres: already running on 127.0.0.1:$PG_PORT"; return; fi
   mkdir -p "$PG_SOCKET_DIR"; chmod 700 "$PG_SOCKET_DIR"
-  # A stale pid file from a killed OnDemand session would block startup; pg_ctl status
+  # A stale pid file from a killed session would block startup; pg_ctl status
   # already said it isn't running, so it's safe to remove.
   rm -f "$PG_DATA/postmaster.pid"
   pg_ctl -D "$PG_DATA" -l "$DATA_DIR/postgres.log" -w -t 30 \

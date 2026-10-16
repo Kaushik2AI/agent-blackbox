@@ -1,7 +1,7 @@
 [project]
 name = "analysis-engine"
 version = "0.5.0"
-description = "Agent BlackBox rule-based failure detectors with event citations (M5)"
+description = "FlightPath rule-based failure detectors with event citations (M5)"
 requires-python = ">=3.11"
 dependencies = ["pydantic==2.14.1"]
 

@@ -45,3 +45,11 @@ These rows are what `--all` checks on every run (and CI checks 10× per fixture)
   so the failure is reproducible; that is the point of a debugging fixture.
 - `expected_baseline` describes the stub's known behaviour and is used only by tests.
   `ground_truth` is what a correct agent should achieve and is what the verifier checks.
+
+## Benchmark cases
+
+`agent_harness/benchmarks/benchmark_v1.jsonl` holds 52 generated cases (see
+`packages/evaluation`). They load by id like any fixture (`load_fixture("bm1-...")`), so
+benchmark runs can be replayed in the app. Two knobs exist only for them: the model script's
+`order_id_case: "lower"` (a malformed order id, retried in a loop) and the
+`stale:lookup_inventory` fault (an outdated cached stock record is served once).

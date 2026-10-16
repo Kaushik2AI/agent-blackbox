@@ -1,7 +1,7 @@
 [project]
 name = "blackbox-sdk"
 version = "0.3.0"
-description = "Agent BlackBox SDK: OpenTelemetry-compatible spans/events for agent runs, with redaction and idempotent export"
+description = "FlightPath SDK: OpenTelemetry-compatible spans/events for agent runs, with redaction and idempotent export"
 requires-python = ">=3.11"
 dependencies = ["httpx==0.28.1"]
 

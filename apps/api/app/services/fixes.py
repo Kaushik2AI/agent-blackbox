@@ -94,7 +94,7 @@ def suggest_fix(session: Session, execution_id: uuid.UUID) -> dict[str, Any]:
                         "data, to check that the rest of the agent works."
                     ),
                 }
-            elif code == "ORDER_NOT_FOUND" and step["tool"] == "lookup_order":
+            elif code in ("ORDER_NOT_FOUND", "INVALID_ARGUMENT") and step["tool"] == "lookup_order":
                 plan = {
                     "step": step,
                     "type": "replace_tool_argument",

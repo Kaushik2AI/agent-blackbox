@@ -10,6 +10,7 @@ import { Segmented } from "./ui";
 const LINKS = [
   { path: "/", label: "Live demo" },
   { path: "/runs", label: "Runs" },
+  { path: "/benchmark", label: "Benchmark" },
 ];
 
 /** The FlightPath mark: a route with two waypoints and a landing square. */

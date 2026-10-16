@@ -17,8 +17,7 @@ Keys are UUIDs (v4) everywhere except OpenTelemetry `trace_id` (32 hex) and `spa
 | `artifacts` | ✅ M3/M6 | id, project_id, uri, sha256, type, byte_size, capture_policy | sha256 verified on read |
 | `replay_jobs` | ✅ M6 | id, source_execution_id, checkpoint_id, fork_execution_id, intervention_json, sandbox_config_json, status, replay_mode, idempotency_key, requested_at | unique idempotency_key; index source_execution_id |
 | `analysis_findings` | ✅ M5 | id, execution_id, category, severity, evidence_event_ids, explanation, detector_version, kind (`verified`/`hypothesis`) | index execution_id |
-| `evaluation_cases` | 🚧 M8 | id, dataset_name, input_json, expected_json, verifier_id, fixture_version, split | immutable |
-| `evaluation_results` | 🚧 M8 | id, case_id, execution_id, ground_truth_success, metrics_json | — |
+| `evaluation_runs` | ✅ M8 | id, run_key, source, benchmark_version, case_id, family, split, arm, model_spec, model_id, passed, execution_id, record_json | unique run_key; index source. Cases themselves are versioned files (`agent_harness/benchmarks/*.jsonl`), not rows |
 
 Tables are added by the milestone that writes to them, through Alembic migrations.
 `apps/api/migrations/versions/0001_m1_base_schema.py` creates the ✅ rows above and is

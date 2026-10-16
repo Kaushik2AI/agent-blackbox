@@ -1,7 +1,7 @@
 [project]
 name = "agent-harness"
 version = "0.2.0"
-description = "Agent BlackBox demo agent: sandboxed customer-support agent (LangGraph) with fixtures and ground-truth verifiers"
+description = "FlightPath demo agent: sandboxed customer-support agent (LangGraph) with fixtures and ground-truth verifiers"
 requires-python = ">=3.11"
 # Exact pins, verified together on Python 3.12 (2026-10-14).
 dependencies = [
@@ -24,7 +24,7 @@ build-backend = "setuptools.build_meta"
 include = ["agent_harness*"]
 
 [tool.setuptools.package-data]
-agent_harness = ["fixtures/*.json"]
+agent_harness = ["fixtures/*.json", "benchmarks/*.jsonl"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

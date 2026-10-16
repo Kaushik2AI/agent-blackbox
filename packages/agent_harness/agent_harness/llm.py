@@ -1,5 +1,5 @@
 """Real-model adapter: any OpenAI-compatible chat endpoint (OpenRouter, DashScope, vLLM on
-SCC, Ollama, ...). The default target is a Qwen instruct model.
+a GPU server, Ollama, ...). The default target is a Qwen instruct model.
 
 The model is asked for ONE JSON action per turn instead of native tool calling, because
 JSON-in-text works the same on every provider and every model size:

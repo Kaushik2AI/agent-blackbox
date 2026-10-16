@@ -9,6 +9,9 @@ fixture is fully determined by the fixture's `model` script:
                                           flagship bug, and naively repeats failed calls
   * max_retries_on_timeout             -> how many times a TIMEOUT is retried
   * resolution_order_id                -> submit the resolution for this (wrong) order id
+  * order_id_case="lower"              -> looks the order up as "ord-1001", which the tool
+                                          rejects (INVALID_ARGUMENT); retried unchanged
+                                          until the budget runs out
 
 A real LLM adapter (M9) implements the same `Model` protocol.
 """
@@ -55,7 +58,10 @@ class StubModel:
         task = state["task"]
         obs = state["observations"]
         if "order" not in obs:
-            return ToolCall("lookup_order", {"order_id": task["order_id"]})
+            order_id = task["order_id"]
+            if self.script.order_id_case == "lower":
+                order_id = order_id.lower()
+            return ToolCall("lookup_order", {"order_id": order_id})
         order = obs["order"]
         if "inventory" not in obs:
             if self.script.inventory_argument == "product_name":

@@ -13,7 +13,7 @@ or from the shell: `make seed-demo` (= `python -m blackbox_sdk.seed_demo --captu
 |---|---|
 | `recorder.py` | Spans (32-hex trace id, 16-hex span ids, parent links, epoch-ms times, GenAI semantic-convention attribute names) and events (monotonic `sequence_no`, UUID `event_id`), batched per contract v1.0. |
 | `redaction.py` | Client-side redaction, identical to the server's (a test enforces it). |
-| `exporters.py` | `HttpExporter` (retries transport errors/429/5xx with backoff; safe because ingest is idempotent), `JsonlExporter` (offline, e.g. SCC jobs), `MemoryExporter` (tests). |
+| `exporters.py` | `HttpExporter` (retries transport errors/429/5xx with backoff; safe because ingest is idempotent), `JsonlExporter` (offline, e.g. GPU batch jobs), `MemoryExporter` (tests). |
 | `integrations/agent_harness.py` | Hooks the demo agent's event stream: one `invoke_agent` root span, a `chat` span per model decision, an `execute_tool` span per tool call, plus fixture and final-sandbox-state artifact references (SHA-256 only). |
 
 **Capture policy.** Default is metadata only: payloads keep field names and value shapes

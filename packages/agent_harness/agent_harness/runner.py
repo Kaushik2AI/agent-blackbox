@@ -90,7 +90,7 @@ def run_fixture(
 ) -> RunResult:
     """Run a fixture from scratch. `message` replaces the customer's message (the world,
     faults and ground truth stay the fixture's). on_event receives every lifecycle event
-    as it happens (the BlackBox SDK hooks in here); it must not raise. "checkpoint" events
+    as it happens (the recorder SDK hooks in here); it must not raise. "checkpoint" events
     carry a full, self-describing checkpoint document (see run_from_checkpoint)."""
     fixture = load_fixture(fixture_id)
     model = model or StubModel(fixture.model)

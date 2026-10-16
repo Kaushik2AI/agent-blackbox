@@ -3,13 +3,12 @@ import type { NextConfig } from "next";
 /**
  * The browser never talks to FastAPI directly. Requests to /backend/* are proxied by the
  * Next.js server to API_INTERNAL_URL, so only ONE port (the web port) has to be reachable
- * from your browser. That matters on BU SCC, where you reach a compute node through an
- * OnDemand proxy and cannot open arbitrary ports.
+ * from your browser. That matters on remote machines you reach through a single
+ * forwarded port or a web-IDE port proxy.
  *
  * PUBLIC_PATH_PREFIX: the URL path under which the BROWSER sees this app when a reverse
- * proxy strips that prefix before forwarding, e.g. the VS Code (code-server) proxy on
- * SCC OnDemand:  https://scc-ondemand2.bu.edu/rnode/<host>/<vscode-port>/proxy/<web-port>/
- *   -> PUBLIC_PATH_PREFIX=/rnode/<host>/<vscode-port>/proxy/<web-port>
+ * proxy strips that prefix before forwarding, e.g. a browser-based VS Code (code-server)
+ * port proxy:  https://<gateway>/<...>/proxy/<web-port>/  ->  PUBLIC_PATH_PREFIX=/<...>/proxy/<web-port>
  * The server still serves from "/", but scripts, styles and API calls are emitted with the
  * prefix so the browser requests them through the proxy. Leave empty for direct access.
  */

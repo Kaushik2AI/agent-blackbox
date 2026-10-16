@@ -7,10 +7,10 @@
 ```mermaid
 flowchart LR
   subgraph Agent side
-    H[Demo agent<br/>LangGraph harness ✅M2] --> SDK[BlackBox SDK<br/>OTel-compatible ✅M3]
+    H[Demo agent<br/>LangGraph harness ✅M2] --> SDK[FlightPath SDK<br/>OTel-compatible ✅M3]
   end
   subgraph Platform
-    W[Next.js dashboard ✅M4<br/>overview · runs · inspector] -- "/backend/* proxy" --> API[FastAPI ✅M1-M4<br/>health · ingest · read APIs]
+    W[Next.js app ✅<br/>live demo, runs, run page, Replay Studio, benchmark] -- "/backend/* proxy" --> API[FastAPI ✅M1-M4<br/>health · ingest · read APIs]
     SDK -- "POST /api/v1/events:batch ✅M3" --> API
     API --> PG[(PostgreSQL ✅<br/>runs · spans · events · artifacts)]
     API -- enqueue --> R[(Redis ✅M1)]
@@ -18,7 +18,7 @@ flowchart LR
     WK --> RE[Replay engine ✅M6<br/>checkpoint resume · no network]
     API --> AN[Analyzer ✅M5<br/>5 rule detectors]
   end
-  SCC[BU SCC qsub GPU batch 🚧M9] -- JSONL import --> API
+  GPU[GPU batch job ✅M9<br/>Grid Engine or Slurm] -- JSONL import --> API
 ```
 
 ### Boundary rules (enforced by design, tested as each piece lands)
@@ -29,7 +29,7 @@ flowchart LR
 3. Ingestion never executes agent code. Only the replay worker runs agent code, and only
    with allowlisted sandbox tools (M6).
 4. LLM-written analysis is untrusted text: rendered as text, never executed.
-5. GPU work goes through the SCC scheduler as batch jobs, never inside a web request.
+5. GPU work runs as scheduler batch jobs that write files, never inside a web request.
 
 ## 2. Request flow (target, by milestone)
 
@@ -78,10 +78,10 @@ stateDiagram-v2
 | 4 | **Findings panel** | ✅ M5 | `/findings` | category, severity, detector version, links to evidence events; LLM text badged **Hypothesis** | "No rule fired" (not "healthy") |
 | 5 | **Replay studio** | ✅ M7 | `/checkpoints`, `POST /replays`, `GET /replays/{id}` | only eligible checkpoints; one intervention (type, target call, schema-validated editor); sandbox badge; confirm dialog; async progress | replay button **disabled** with reason when no eligible checkpoint |
 | 6 | **Comparison** | ✅ M7 | `/replays/{id}/comparison` | side-by-side graphs, the exact intervention record, JSON diff, verifier outcome, latency/calls/tokens/cost; replay class (`deterministic` / `controlled_stochastic` / `best_effort`) | fork still running → progress; fork failed → shown honestly |
-| 7 | **Evaluation lab** | M8 | `/evaluations` | benchmark, baselines vs intervention, denominators, CIs, export JSON/CSV | numbers only from result files |
+| 7 | **Benchmark** | ✅ M8 | `/evaluations` | benchmark, baselines vs intervention, denominators, CIs, export JSON/CSV | numbers only from result files |
 | 8 | **Integration page** | M10 | project/API-key APIs | copyable SDK snippet; API key shown once at creation | — |
 
-Global UI rules: dark theme, keyboard accessible, responsive to phone width, no hardcoded
+Global UI rules: light, neutral UI where colour means something (see design/flightpath-redesign.md), keyboard accessible, responsive to phone width, no hardcoded
 metrics, loading/empty/error states on every data view.
 
 ## 5. Milestone task graph
@@ -98,8 +98,8 @@ flowchart TD
   M4 --> M7[M7 Replay studio + comparison ✅]
   M5 --> M7
   M6 --> M7
-  M7 --> M8[M8 Benchmark 30-60 cases]
-  M8 --> M9[M9 SCC GPU qsub + import]
+  M7 --> M8[M8 Benchmark 52 cases ✅]
+  M8 --> M9[M9 GPU batch eval + import ✅ built]
   M8 --> M10[M10 Hardening + release]
   M9 --> M10
 ```

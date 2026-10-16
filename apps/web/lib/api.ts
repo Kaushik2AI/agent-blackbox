@@ -246,11 +246,12 @@ export async function apiGet<T>(
 }
 
 export const api = {
-  overview: (since?: string) => apiGet<Overview>("/api/v1/overview", { since }),
+  overview: (since?: string, project?: string) => apiGet<Overview>("/api/v1/overview", { since, project }),
   agentVersions: () => apiGet<AgentVersion[]>("/api/v1/agent-versions"),
   executions: (filters: {
     status?: string;
     agent_version_id?: string;
+    project?: string;
     since?: string;
     limit?: number;
     offset?: number;
@@ -497,4 +498,62 @@ export const liveApi = {
       sandbox: "fixture_only",
       idempotency_key: key,
     }),
+};
+
+// ------------------------------------------------------------------ benchmark (M8/M9)
+export type RateOut = { k: number; n: number; rate: number | null; ci_low: number | null; ci_high: number | null };
+
+export type EvalSource = {
+  source: string;
+  benchmark_version: string;
+  model_spec: string;
+  model_id: string;
+  model_revision: string | null;
+  seed: number;
+  cases: number;
+  runs: number;
+  imported_at: string | null;
+  success: RateOut;
+  repair_recovery: RateOut;
+};
+
+export type EvalBlock = {
+  baseline_runs: number;
+  failed_runs: number;
+  success: RateOut;
+  repair_coverage: RateOut;
+  repair_recovery: RateOut;
+  random_recovery: RateOut;
+  no_change_recovery: RateOut;
+  replay_validity: RateOut;
+  false_benefit: RateOut;
+  detectors: {
+    per_category: Record<string, { tp: number; fp: number; fn: number; precision: RateOut; recall: RateOut }>;
+    coverage_on_failed: RateOut;
+    false_alarm_on_passed: RateOut;
+  };
+  latency: Record<string, { median_ms: number | null; p95_ms: number | null }>;
+  tokens: Record<string, { mean_tokens: number | null; cost_usd: number | null }>;
+};
+
+export type EvalArmCell = { passed: boolean; skipped: string | null; execution_id: string | null; findings: string[] | null; intervention: string | null };
+
+export type EvalSummary = {
+  source: string;
+  benchmark_version: string;
+  model_spec: string;
+  model_id: string;
+  model_revision: string | null;
+  seed: number;
+  cases: number;
+  runs: number;
+  splits: Partial<Record<"all" | "dev" | "heldout", EvalBlock>>;
+  families: { family: string; cases: number; success: RateOut; repair_recovery: RateOut; random_recovery: RateOut; replay_validity: RateOut }[];
+  case_rows: { case_id: string; family: string; split: string; baseline?: EvalArmCell; repair?: EvalArmCell; no_change?: EvalArmCell; random?: boolean[] }[];
+};
+
+export const evalApi = {
+  sources: () => apiGet<EvalSource[]>("/api/v1/evaluations"),
+  summary: (source: string) => apiGet<EvalSummary>(`/api/v1/evaluations/${source}`),
+  csvUrl: (source: string) => `${backendBase()}/api/v1/evaluations/${source}/runs.csv`,
 };

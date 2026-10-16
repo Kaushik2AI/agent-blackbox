@@ -30,7 +30,7 @@ test("find the real invalid-inventory-argument failure and inspect the failing s
 test("run counts come from the API, not placeholders", async ({ page, request }) => {
   await page.goto("runs");
   await expect(page.getByTestId("kpis")).toContainText("recorded");
-  const api = await request.get("backend/api/v1/overview");
+  const api = await request.get("backend/api/v1/overview", { params: { project: "demo" } });
   const data = await api.json();
   await expect(page.getByTestId("kpis")).toContainText(String(data.total));
 });

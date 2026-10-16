@@ -32,8 +32,8 @@ function problemLine(r: ExecutionSummary): string {
 }
 
 const PAGE = 20;
-type Filters = { status: string; version: string; since: string; page: number };
-const DEFAULTS: Filters = { status: "", version: "", since: "", page: 0 };
+type Filters = { status: string; version: string; since: string; page: number; source: string };
+const DEFAULTS: Filters = { status: "", version: "", since: "", page: 0, source: "demo" };
 
 function readFilters(): Filters {
   const q = new URLSearchParams(window.location.search);
@@ -41,6 +41,7 @@ function readFilters(): Filters {
     status: q.get("status") ?? "",
     version: q.get("version") ?? "",
     since: q.get("since") ?? "",
+    source: q.get("source") ?? "demo",
     page: Math.max(0, Number(q.get("page") ?? 0) || 0),
   };
 }
@@ -50,6 +51,7 @@ function writeFilters(f: Filters) {
   if (f.status) q.set("status", f.status);
   if (f.version) q.set("version", f.version);
   if (f.since) q.set("since", f.since);
+  if (f.source !== "demo") q.set("source", f.source);
   if (f.page) q.set("page", String(f.page));
   const url = `${window.location.pathname}${q.size ? `?${q}` : ""}`;
   window.history.replaceState(null, "", url);
@@ -67,13 +69,15 @@ export function RunsExplorer() {
 
   const versions = useApi(() => api.agentVersions(), "versions");
   const cfg = useApi(() => liveApi.config(), "live-config");
-  const stats = useApi(() => api.overview(sinceToIso(f.since)), `overview-${f.since}`);
+  const project = f.source === "all" ? undefined : f.source;
+  const stats = useApi(() => api.overview(sinceToIso(f.since), project), `overview-${f.since}-${f.source}`);
   const titleOf = (task: string) => cfg.data?.scenarios.find((s) => s.fixture_id === task)?.title ?? task.replaceAll("_", " ");
   const runs = useApi(
     () =>
       api.executions({
         status: f.status || undefined,
         agent_version_id: f.version || undefined,
+        project,
         since: sinceToIso(f.since),
         limit: PAGE,
         offset: f.page * PAGE,
@@ -108,6 +112,13 @@ export function RunsExplorer() {
           <p className="mt-0.5 text-fg-2">Every recorded run, newest first. Open one to see its flight path.</p>
         </div>
         <div className="flex flex-wrap gap-3 text-[14px] text-fg-2">
+          <label>Runs
+            <select aria-label="Source" value={f.source} onChange={(e) => update({ source: e.target.value })} className={select}>
+              <option value="demo">Live demo and recorded</option>
+              <option value="benchmark">Benchmark</option>
+              <option value="all">All</option>
+            </select>
+          </label>
           <label>Status
             <select aria-label="Status" value={f.status} onChange={(e) => update({ status: e.target.value })} className={select}>
               <option value="">All</option>

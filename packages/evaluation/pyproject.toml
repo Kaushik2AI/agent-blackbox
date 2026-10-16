@@ -1,0 +1,53 @@
+[project]
+name = "evaluation"
+version = "0.1.0"
+description = "FlightPath benchmark: versioned cases, baselines, metrics with confidence intervals, GPU batch runs"
+requires-python = ">=3.11"
+dependencies = ["pydantic==2.14.1"]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "ruff==0.17.0", "mypy==2.4.0"]
+# Only for real-model runs on a GPU (or a slow CPU); not needed for the CPU benchmark.
+gpu = ["torch>=2.6", "transformers>=4.56", "accelerate>=1.0", "huggingface_hub>=0.34"]
+
+[project.scripts]
+flightpath-benchmark = "evaluation.benchmark:main"
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["evaluation*"]
+
+[tool.setuptools.package-data]
+evaluation = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101", "S311"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["evaluation"]
+known-third-party = ["agent_harness", "blackbox_sdk", "analysis_engine"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = "../agent_harness:../blackbox_sdk:../analysis_engine"
+
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*", "transformers", "transformers.*", "huggingface_hub", "huggingface_hub.*"]
+ignore_missing_imports = true
+
+[tool.ruff.lint.per-file-ignores]
+# SVG markup and report tables read better on one line each.
+"evaluation/report.py" = ["E501"]

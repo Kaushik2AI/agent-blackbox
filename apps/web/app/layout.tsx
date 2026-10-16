@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-// Fonts are bundled (no request to Google), so the page looks the same offline, on SCC
-// and on the public demo.
+// Fonts are bundled (no request to Google), so the page looks the same offline, on a
+// remote server and on a public deployment.
 import "@fontsource-variable/instrument-sans/wdth.css";
 import "@fontsource-variable/jetbrains-mono/index.css";
 import "./globals.css";

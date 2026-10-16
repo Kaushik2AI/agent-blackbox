@@ -215,6 +215,7 @@ def list_executions(
     status: ExecutionStatus | None = None,
     agent_version_id: uuid.UUID | None = None,
     task_id: str | None = None,
+    project: str | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
@@ -227,6 +228,8 @@ def list_executions(
         query = query.where(Execution.agent_version_id == agent_version_id)
     if task_id:
         query = query.where(Execution.task_id == task_id)
+    if project:
+        query = query.where(Project.name == project)
     if since is not None:
         query = query.where(Execution.started_at >= since)
     if until is not None:
@@ -382,8 +385,14 @@ def get_graph(execution_id: uuid.UUID, session: SessionDep) -> Graph:
 
 
 @router.get("/overview", response_model=Overview)
-def overview(session: SessionDep, since: datetime | None = None) -> Overview:
+def overview(
+    session: SessionDep, since: datetime | None = None, project: str | None = None
+) -> Overview:
     query = select(Execution)
+    if project:
+        query = query.join(Project, Execution.project_id == Project.id).where(
+            Project.name == project
+        )
     if since is not None:
         query = query.where(Execution.started_at >= since)
     executions = session.scalars(query).all()

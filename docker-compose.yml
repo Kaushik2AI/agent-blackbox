@@ -1,5 +1,5 @@
 # OPTIONAL: Postgres + Redis for people who have Docker (e.g. a laptop).
-# Not usable on BU SCC (no Docker there) - use `make setup-scc` instead.
+# Optional. Without Docker, use `make setup` instead (pip-installed Postgres/Redis).
 # The API, worker and web app run natively via `make dev` in both cases.
 services:
   postgres:

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time setup for the live demo's real AI on SCC: installs PyTorch + transformers into
+# One-time setup for the live demo's real AI on this machine: installs PyTorch + transformers into
 # the project venv, downloads a Qwen model into the repo (project space), points .env at
 # the local Qwen server and runs a one-question self-test.
 #
@@ -15,12 +15,12 @@ say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 die() { printf '\n\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 ENV_FILE="$REPO_ROOT/.env"
-[ -f "$ENV_FILE" ] || die "No .env yet. Run 'make setup-scc' first."
+[ -f "$ENV_FILE" ] || die "No .env yet. Run 'make setup' first."
 set -a; # shellcheck disable=SC1090
 source "$ENV_FILE"; set +a
 VENV="${BLACKBOX_VENV:-$REPO_ROOT/.venv}"
 PY="$VENV/bin/python"
-[ -x "$PY" ] || die "venv not found at $VENV. Run 'make setup-scc' first."
+[ -x "$PY" ] || die "venv not found at $VENV. Run 'make setup' first."
 
 set_env() {  # set_env KEY VALUE  (replace the line or append it)
   local key=$1 value=$2
@@ -43,7 +43,7 @@ HF_HOME_DIR="$REPO_ROOT/.cache/huggingface"
 mkdir -p "$PIP_CACHE_DIR" "$HF_HOME_DIR"
 
 # PyTorch build: CPU-only (small) on a node without a GPU; on a GPU node, a CUDA 12.6
-# build, which runs on the drivers SCC has (the default PyPI build needs CUDA 13 drivers).
+# build, which runs on most current drivers (the default PyPI build needs CUDA 13 drivers).
 # Override with TORCH_INDEX_URL=... (e.g. https://download.pytorch.org/whl/cu128).
 if [ -z "${TORCH_INDEX_URL:-}" ]; then
   if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
@@ -96,7 +96,7 @@ mkdir -p "$(dirname "$LOG")"
 if curl -fsS "http://127.0.0.1:$QWEN_PORT/health" >/dev/null 2>&1; then
   die "Something already runs on port $QWEN_PORT (is 'make dev' running?). Stop it and re-run."
 fi
-"$PY" infra/scc/qwen_server.py >"$LOG" 2>&1 &
+"$PY" infra/local/qwen_server.py >"$LOG" 2>&1 &
 SERVER=$!
 trap 'kill $SERVER 2>/dev/null || true' EXIT
 

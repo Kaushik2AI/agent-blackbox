@@ -1,6 +1,6 @@
-"""The local Qwen server (infra/scc/qwen_server.py) and how the API reads its status.
+"""The local Qwen server (infra/local/qwen_server.py) and how the API reads its status.
 The HTTP layer is tested with a fake engine; loading a real model is covered by
-`make qwen-setup`, which runs a one-question self-test on the SCC node."""
+`make qwen-setup`, which runs a one-question self-test on the machine."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-SERVER = Path(__file__).resolve().parents[3] / "infra" / "scc" / "qwen_server.py"
+SERVER = Path(__file__).resolve().parents[3] / "infra" / "local" / "qwen_server.py"
 spec = importlib.util.spec_from_file_location("qwen_server", SERVER)
 assert spec and spec.loader
 qs = importlib.util.module_from_spec(spec)
@@ -37,7 +37,7 @@ def test_model_choice_fits_the_hardware() -> None:
     assert qs.choose_model("auto", None, 32) == qs.MEDIUM
     assert qs.choose_model("auto", None, 6) == qs.SMALL
     assert qs.choose_model("Qwen/Qwen2.5-7B-Instruct", None, 2) == "Qwen/Qwen2.5-7B-Instruct"
-    assert qs.short_label(qs.MEDIUM, "cpu") == "Qwen2.5 1.5B · on SCC CPU"
+    assert qs.short_label(qs.MEDIUM, "cpu") == "Qwen2.5 1.5B (local CPU)"
 
 
 class FakeEngine:
@@ -73,7 +73,7 @@ def test_server_speaks_the_openai_chat_format_and_requires_the_key() -> None:
 
     assert client.get("/v1/models", headers=ok).json()["data"][0]["id"] == qs.MEDIUM
     health = client.get("/health").json()  # no key needed: used by the API's status probe
-    assert health["status"] == "ready" and health["label"].endswith("on SCC CPU")
+    assert health["status"] == "ready" and health["label"].endswith("(local CPU)")
 
 
 def test_server_refuses_chats_while_loading() -> None:
@@ -121,9 +121,9 @@ def test_local_model_status_follows_the_server(local_llm: Any, monkeypatch: Any)
     local_llm._status_cache.clear()
     _health(
         monkeypatch,
-        {"status": "ready", "model": qs.MEDIUM, "label": "Qwen2.5 1.5B · on SCC CPU"},
+        {"status": "ready", "model": qs.MEDIUM, "label": "Qwen2.5 1.5B (local CPU)"},
     )
-    assert local_llm.llm_status() == ("ready", "Qwen2.5 1.5B · on SCC CPU")
+    assert local_llm.llm_status() == ("ready", "Qwen2.5 1.5B (local CPU)")
     # Traces name the model that was really loaded, not the placeholder in .env.
     assert local_llm.llm_model_name() == f"llm:{qs.MEDIUM}"
     assert local_llm.build_llm().config.model == qs.MEDIUM

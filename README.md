@@ -1,212 +1,256 @@
 # FlightPath
 
-**The flight recorder for AI agents.** (Repository: `agent-blackbox`.)
-A recorder, debugger and recovery studio for AI agents.
-Inspect every step of an agent run, fork from a saved checkpoint, change one condition
-safely, replay the rest in a sandbox, and compare the outcome against a ground-truth
-verifier.
+**The flight recorder for AI agents.**
 
-> **Project status: M7 of 11 — MVP complete.** A sandboxed LangGraph support agent with
-> six fixtures and ground-truth verifiers; a Python SDK that records every run as
-> OpenTelemetry-style spans/events plus pre-step checkpoints; an idempotent, redacting
-> ingest API; five rule-based failure detectors that cite their evidence; a replay engine
-> that resumes a checkpoint as a **new** execution in a network-blocked sandbox with exactly
-> one validated intervention; and a dashboard with an execution inspector, Replay Studio
-> and original-vs-fork comparison. Benchmarking (M8), real-model runs on SCC (M9) and
-> hardening/auth (M10) are not built yet.
+When an AI agent fails, logs show you an error or a wrong final answer. They don't show you
+*the moment it went wrong*, *why*, or *whether a fix would actually work*. FlightPath
+records every step an agent takes, points to the most likely root cause in plain words,
+and lets you restart the run from that step with one change, safely, to prove the fix.
 
-## The interface
+![A failed run in FlightPath: summary strip, plain-language answers, and the flight path](docs/images/run.png)
 
-See [docs/design/flightpath-redesign.md](docs/design/flightpath-redesign.md): a horizontal
-flight path per run, root cause kept apart from its symptoms, Simple and Technical views,
-and a guided Replay Studio.
+## What it answers
 
-## Why this exists
+| Question | How FlightPath answers it |
+|---|---|
+| **What happened?** | Every step on one horizontal *flight path*: what the AI was thinking, what it sent to each tool, what came back. Identical failing attempts fold into one "stuck in a loop" block. An *In simple words* summary reads like a person wrote it. |
+| **Why did it fail?** | Rule-based detectors that cite the exact steps they are based on. FlightPath ranks them: one **most likely cause**, the rest shown as its symptoms ("then: stuck in a loop", "then: ran out of steps"). |
+| **What should I try next?** | A suggested change built only from what the run recorded (e.g. "use the product code SKU-RED-004 that the order lookup already returned"), runnable in one click. Or design your own in **Replay Studio**. |
+| **Did the change fix it?** | The run restarts from a saved step as a **new** recording, in a sandbox with simulated tools and no network. An outcome check that knows the right answer decides pass or fail, never the agent. Before and after are shown side by side. |
 
-When an agent fails, ordinary logs show an exception or a bad final answer, but not the
-sequence that led there: which tool was proposed, with what arguments, what came back, how
-many retries, and where recovery became impossible. Tracing alone is not new. Agent
-BlackBox combines an open instrumentation contract, a **branchable** agent harness,
-**controlled single-change interventions**, and **measured** recovery against objective
-verifiers.
-
-## Roadmap
-
-| Milestone | What it delivers | Status |
+| Live demo | Replay Studio | Before and after |
 |---|---|---|
-| M0 | Specification: architecture, replay contract, data model, threat model, acceptance matrix | ✅ |
-| M1 | Postgres + Redis + RQ, FastAPI `/healthz` `/readyz`, Alembic schema, Next.js status page, CI, SCC/no-Docker setup | ✅ |
-| M2 | Sandboxed customer-support agent (LangGraph, stub model) with 5 fixtures and verifiers | ✅ |
-| M3 | Python SDK (OTel-compatible) + idempotent, redacting event ingestion | ✅ |
-| M4 | Execution inspector: runs list, React Flow graph, timeline, event inspector | ✅ |
-| M5 | Rule-based failure detectors with evidence links and measured precision/recall | ✅ |
-| M6 | Checkpoint replay engine: isolated forks, one validated intervention | ✅ |
-| M7 | Replay Studio + original-vs-fork comparison (MVP complete) | ✅ |
-| M8 | Reproducible 30–60 case benchmark with baselines and CIs | ⏳ next |
-| M9 | BU SCC GPU batch evaluation (qsub) with an open-weight model | ⏳ |
-| M10 | Hardening, auth, docs, demo | ⏳ |
+| ![Live demo](docs/images/live.png) | ![Replay Studio](docs/images/studio.png) | ![Comparison](docs/images/compare.png) |
+
+## Does the suggested change actually help? (benchmark)
+
+52 synthetic support tickets in 8 families (3 kinds of controls, wrong tool inputs, a
+looping lookup, a system that never answers, stale data, mixed-up customer orders), 16 of
+them held out. Every failed run is restarted three ways and judged by the outcome check:
+
+![Recovery of failed runs, by change](benchmark-results/benchmark_v1/scripted/charts/recovery.svg)
+
+| Scripted agent, all 52 cases | Result (95% interval) |
+|---|---|
+| Baseline success | 38% (20/52; 26–52%) |
+| Failed runs fixed by FlightPath's suggested change | **81%** (26/32; 65–91%) |
+| Fixed by a random valid change (5 tries per case) | 22% (35/160; 16–29%) |
+| Fixed by restarting with nothing changed | 0% (0/32; 0–11%) |
+| Replays that reproduce the original run exactly | 100% (52/52; 93–100%) |
+| Held-out cases only: fixed by FlightPath's change | 80% (8/10; 49–94%) |
+
+Every number above is in [`summary.md`](benchmark-results/benchmark_v1/scripted/summary.md),
+computed from [`runs.jsonl`](benchmark-results/benchmark_v1/scripted/runs.jsonl) (one line
+per run) and rebuilt from scratch by `make benchmark` in about ten seconds.
+
+**Read it honestly.** The cases are synthetic and the repair rules and detectors were
+written by the same team (against the demo fixtures, not these cases). The 6 *stale data*
+failures are not caught at all: no detector looks at data freshness yet, so FlightPath
+proposes nothing for them, and they count as not fixed. A recovered run shows that the
+change was followed by success; together with the two controls it is evidence, not proof,
+of the root cause. Real-model runs (below) repeat each case with several seeds because a
+real model doesn't behave the same way twice.
+
+## How it works
+
+```mermaid
+flowchart LR
+  subgraph agent ["Your agent (or the demo agent)"]
+    A[Agent loop] -->|steps| SDK[FlightPath SDK<br/>spans, events, checkpoints<br/>redacted on the client]
+  end
+  SDK -->|"POST /api/v1/events:batch<br/>idempotent"| API[FastAPI]
+  subgraph platform [FlightPath]
+    API --> DB[(PostgreSQL<br/>runs, steps, findings,<br/>re-runs, benchmark)]
+    API --> DET[Detectors<br/>evidence-linked findings]
+    API -->|job id| Q[(Redis)]
+    Q --> W[Replay worker<br/>new run from a checkpoint<br/>one change, sandbox, no network]
+    W --> API
+    WEB[Next.js app] -->|"/backend proxy"| API
+  end
+  U((You)) --> WEB
+  GPU[GPU batch job<br/>real model, results as files] -.->|import| API
+```
+
+A replay, step by step:
+
+```mermaid
+sequenceDiagram
+  actor You
+  participant App as FlightPath app
+  participant API
+  participant W as Replay worker
+  You->>App: Re-run from step 2 with sku = SKU-RED-004
+  App->>API: POST /api/v1/replays (checkpoint, one change, idempotency key)
+  API->>API: change valid for the tool's contract? checkpoint hash intact?
+  API-->>App: 202 Accepted, job id
+  API->>W: job id (nothing else crosses the queue)
+  W->>W: restore saved state into a NEW run, block the network
+  W->>W: apply the change, re-run the remaining steps for real
+  W->>API: new recording + outcome check result
+  App->>API: poll job, then GET comparison
+  API-->>App: before / change / after, aligned step by step
+```
+
+The source run is never modified (tested by fingerprinting its rows before and after).
+Design details: [architecture](docs/architecture.md) and the
+[replay contract](docs/replay-contract.md).
 
 ## Quickstart
 
-### On BU SCC (OnDemand VS Code / Desktop session — only Python + pip, no Docker/conda)
+Needs Linux or macOS, Python 3.11/3.12 and `make`. No Docker, root or conda: Postgres,
+Redis and Node are installed from Python wheels into a project-local virtualenv.
 
 ```bash
-git clone https://github.com/<you>/agent-blackbox.git && cd agent-blackbox
-make setup-scc     # Python venv + pip-installed Postgres/Redis/Node, random-password .env, migrations
-make dev           # API + worker + web; prints the URL to open
+git clone https://github.com/Kaushik2AI/agent-blackbox.git && cd agent-blackbox
+make setup     # venv, Postgres/Redis/Node, web deps, .env with random passwords, migrations
+make dev       # API + replay worker + web app; prints the URL to open
 ```
 
-Optional, for the **Live AI** agent on the home page (a real Qwen model on your SCC node):
+Open the URL, choose **Scripted** and **Agent bug: wrong input**, and press **Start the run**.
+
+<details>
+<summary>With Docker for Postgres/Redis instead</summary>
 
 ```bash
-make qwen-setup    # once: PyTorch + transformers + a Qwen2.5 model, then a one-question self-test
-make dev           # now also starts the Qwen server ("Live AI: Qwen loading..." for 1-2 min)
-```
-
-It picks the model size from the node: Qwen2.5-3B on a GPU with 12 GB+, 1.5B on a smaller
-GPU or a CPU node with 10 GB+ free RAM, otherwise 0.5B. Weights and pip downloads stay
-inside the repo (`.cache/`), not your home quota. Force one with
-`QWEN_MODEL=Qwen/Qwen2.5-3B-Instruct make qwen-setup`. On a CPU node expect roughly
-10-20 s per AI step.
-
-### On a laptop with Docker
-
-```bash
-cp .env.example .env   # set passwords
-python3.11 -m venv .venv && source .venv/bin/activate
+cp .env.example .env   # set the two passwords
+python3.12 -m venv .venv && source .venv/bin/activate
 make install && make compose-up && make dev
 ```
+</details>
 
-Then open the printed URL. You should see **All systems ready** with live Postgres and
-Redis latencies. Stop Redis (`make services-down` or `docker compose stop redis`) and the
-page turns amber with the real error within 5 seconds.
-
-Full instructions, cleanup and troubleshooting: [`docs/developer-runbook.md`](docs/developer-runbook.md).
-
-## The demo agent
+<details>
+<summary>Live AI: a real Qwen model on your machine</summary>
 
 ```bash
-make demo        # all 5 fixtures x10, each compared with its expected baseline
-make demo-fail   # the flagship failure: product_name passed instead of sku
+make qwen-setup   # once: PyTorch + transformers + Qwen2.5, then a one-question self-test
+make dev          # also starts a local model server; "Live AI" turns on when it has loaded
 ```
 
-```
-fixture                        verifier  termination       errors           baseline
-exchange_success               pass      completed         -                match x10
-invalid_inventory_argument     fail      budget_exhausted  SKU_REQUIRED     match x10
-persistent_inventory_timeout   fail      tool_failure      TIMEOUT          match x10
-refund_out_of_stock            pass      completed         -                match x10
-transient_inventory_timeout    pass      completed         TIMEOUT          match x10
-```
+The model size follows the hardware: Qwen2.5-3B on a GPU with 12 GB or more, 1.5B on a
+smaller GPU or a CPU with 10 GB free RAM, otherwise 0.5B. On a CPU expect 10–20 s per AI
+step. Any OpenAI-compatible API works too: set `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`.
+</details>
 
-(Output of `make demo` with the deterministic stub model; details in
-[`packages/agent_harness/README.md`](packages/agent_harness/README.md).)
+<details>
+<summary>Running the app on a remote server</summary>
 
-## Recording runs and inspecting them
+Only one port (the web port in `.env`) has to reach your browser; the API is proxied
+behind it. With SSH: `ssh -L 3000:127.0.0.1:<WEB_PORT> server`. Behind a browser-based
+VS Code (code-server), `make dev` detects the IDE's port proxy and builds the app for it;
+see [the runbook](docs/developer-runbook.md).
+</details>
+
+## Benchmark and GPU evaluation
 
 ```bash
-make dev          # terminal 1: API + worker + web
-make seed-demo    # terminal 2: run all 5 fixtures through the SDK -> ingest API -> Postgres
+make benchmark          # 52 cases x 4 arms on CPU -> benchmark-results/benchmark_v1/scripted/
+make benchmark-import   # load it into the app: Benchmark page, every run openable
 ```
 
-Open the web UI → **Runs** → `invalid_inventory_argument` → click the red
-`execute_tool lookup_inventory` node: the inspector shows `SKU_REQUIRED`, the
-`validation_error` type and the offending `product_name` argument. Every number and node
-on screen comes from rows written by the ingest API.
-
-## The flagship demo: fail → diagnose → fork → verified recovery
-
-1. **Runs** → `invalid_inventory_argument`. Findings at the top (all *verified*, each citing
-   event IDs): `tool_schema_mismatch`, `retry_loop`, `budget_exhausted`.
-2. **⑂ Replay Studio** → checkpoint *before call #1 · lookup_inventory* is pre-selected →
-   replace the arguments `{"product_name": "red backpack"}` with `{"sku": "SKU-RED-004"}` →
-   **Run replay** → confirm.
-3. The RQ worker restores the checkpoint into a **new** execution (parent = original),
-   blocks all network access, applies the one change and re-runs the remaining steps for
-   real. The ground-truth verifier passes.
-4. **Compare original vs fork**: the exact intervention record, step-by-step alignment
-   (first divergence at call #1), the final sandbox diff (a draft and an `exchange`
-   resolution now exist), both graphs, and an explicit causal-claim caveat. The original
-   run's rows are byte-for-byte unchanged (tested).
-
-The same flow runs as an automated browser test (`e2e/replay.spec.ts`).
-
-## Failure detectors (M5)
-
-```
-$ make eval-detectors
-detectors v1.0, labels v1.0, 6 fixtures (metadata-only traces)
-
-category                    TP  FP  FN  TN  precision  recall    F1
-tool_schema_mismatch         1   0   0   5       1.00    1.00  1.00
-retry_loop                   1   0   0   5       1.00    1.00  1.00
-tool_timeout                 1   0   0   5       1.00    1.00  1.00
-budget_exhausted             1   0   0   5       1.00    1.00  1.00
-state_identity_mismatch      1   0   0   5       1.00    1.00  1.00
-
-micro precision 1.00, micro recall 1.00
-Caveat: 6 hand-labelled fixtures written by the same team as the detectors; no held-out set yet (M8). Treat as a regression check, not a generalisation claim.
-```
-
-Those numbers are recomputed from scratch on every run (real agent → SDK in metadata-only
-mode → detectors → comparison with `packages/analysis_engine/analysis_engine/labels/v1.json`).
-Six fixtures is a regression check, not evidence of generalisation; M8 adds a larger,
-held-out benchmark.
-
-## Checks
+With a real model on a GPU (resumable batch job; results are files, nothing listens on a
+port):
 
 ```bash
-make check            # ruff + mypy --strict + tsc, API tests, web tests, production build
-make test-web-smoke   # with `make dev` running: browser path -> Next.js -> FastAPI -> deps
+make gpu-setup                       # once, with internet: CUDA PyTorch + model download
+qsub infra/batch/sge_eval.sh         # Grid Engine
+sbatch infra/batch/slurm_eval.sh     # or Slurm
+make gpu-benchmark                   # or right here, on this machine's GPU
+make benchmark-import BENCH_OUT=benchmark-results/benchmark_v1/qwen2.5-3b-instruct
 ```
 
-Test inventory (M7): 5 Playwright browser tests (adds the full flagship replay flow and the
-disabled-replay case), 20 replay/findings API tests against real Postgres/Redis (fork
-immutability by row fingerprint, checkpoint hash tampering, six kinds of rejected
-interventions, metadata-only runs refused, idempotency keys, crash recovery of a half-written
-fork, blocked network access, independent forks, a real RQ worker), 11 harness replay
-tests, 9 detector tests, 3 new SDK tests. Earlier milestones: 3 Playwright browser tests (find and open the real failing run with
-the keyboard, click the failing span, see the error; overview matches the API; live
-readiness), 14 SDK tests (span tree, OTel-style IDs, ordering, metadata-only default,
-opt-in content, client-side redaction, retrying exporter, JSONL export), 46 API tests
-including 22 new ingest/read tests against real Postgres (real agent runs persisted and
-checked with SQL, duplicate batches, out-of-order and missing-parent batches, late span
-ends, terminal-status protection, unknown schema_version, 413 limits, payload truncation,
-server-side redaction of a non-redacting client, provenance), 7 web unit tests, and
-31 demo-agent tests (tool contracts and error codes, fault injection,
-every fixture vs. baseline, failure-reason checks, 10x determinism, per-run isolation,
-no-network guard, contract drift), 10 API tests (health, readiness failure reporting
-without secret leakage, migrations up/down, foreign keys, fork self-parent check, real RQ
-job round trip, config parsing) and 5 web tests (4 unit, 1 live smoke).
+Each run records the model and its resolved revision, decoding settings, seed, agent and
+fixture versions, torch/CUDA versions, GPU and scheduler job id (never the host name).
+Method and metric definitions: [docs/benchmark.md](docs/benchmark.md). The real-model
+results are not in this README because they have not been run yet; the scripts have been
+exercised end to end on a CPU with a small model.
 
-## Architecture
+## Record your own agent
 
+```python
+import uuid
+
+from blackbox_sdk.exporters import HttpExporter
+from blackbox_sdk.recorder import Recorder, Resource
+
+rec = Recorder(
+    resource=Resource(project="my-team", agent="refund-bot", git_sha="abc1234",
+                      config_hash="prompt-v3", model_name="qwen2.5-7b-instruct"),
+    execution_id=str(uuid.uuid4()), task_id="refund-ticket-42",
+    capture_content=True,  # default False: field names and value shapes only
+)
+root = rec.start_span("invoke_agent refund-bot", "agent")
+tool = rec.start_span("execute_tool lookup_order", "tool", parent=root)
+rec.add_event(tool, "tool_call_end", status="error", tool_name="lookup_order",
+              payload={"input_redacted": rec.capture({"order_id": "a-1001"}),
+                       "error_code": "ORDER_NOT_FOUND"})
+rec.end_span(tool, "error"); rec.end_span(root, "error"); rec.finish("failed")
+for batch in rec.to_batches():
+    HttpExporter("http://127.0.0.1:8000").export(batch)
 ```
-Demo agent ──► BlackBox SDK ──POST /api/v1/events:batch──┐
-                                                          ▼
-Browser ──► Next.js (only exposed port) ──/backend/*──► FastAPI ──► PostgreSQL
-                                                          └──────► Redis ◄── RQ worker
+
+Runnable version: [`examples/record_your_agent.py`](examples/record_your_agent.py).
+Re-running from a checkpoint needs a harness that can resume from saved state (the demo
+agent can); recording and diagnosis work for any agent.
+
+## Repository
+
+| Path | What it is |
+|---|---|
+| `apps/web` | Next.js app: live demo, runs, run page (story, replay, trace, evidence), Replay Studio, comparison, benchmark |
+| `apps/api` | FastAPI: ingest, read APIs, findings, replay orchestration, benchmark import; Alembic migrations |
+| `packages/agent_harness` | Demo support agent (LangGraph), simulated tools with contracts, fixtures, outcome check, checkpoint resume |
+| `packages/blackbox_sdk` | Recording SDK: OpenTelemetry-style spans and events, redaction, exporters |
+| `packages/analysis_engine` | Rule-based failure detectors with evidence |
+| `packages/evaluation` | Benchmark cases, the four arms, metrics with intervals, reports, GPU model adapter |
+| `infra/local` | No-Docker setup and services, local model server |
+| `infra/batch` | GPU job scripts (Grid Engine, Slurm) |
+| `benchmark-results` | Committed benchmark output (runs, summary, charts) |
+| `docs` | Architecture, replay contract, data model, threat model, design, benchmark method |
+
+## Quality checks
+
+```bash
+make check       # ruff + mypy --strict + tsc, all unit/integration tests, production build
+make test-e2e    # with `make dev` running: 7 browser tests (Playwright)
 ```
 
-Design documents:
+Tests: 52 agent harness, 17 SDK, 9 detector, 65 benchmark, 88 API (against real
+Postgres and Redis), 21 web unit, 7 browser. Highlights: the source run is byte-for-byte
+unchanged after a replay; tampered checkpoints are refused; network access during a replay
+fails the job; the benchmark rebuilds identical results from scratch and resumes without
+duplicates; metric denominators are tested against hand-computed values.
 
-- [Architecture, lifecycle, UX spec, task graph](docs/architecture.md)
-- [Replay contract: visualization vs checkpoint replay vs counterfactual](docs/replay-contract.md)
-- [Data model and event contract v1.0](docs/data-model.md)
+## Limitations
+
+- **No authentication yet.** Run it on your own machine or behind an authenticated proxy;
+  don't expose the API port on a network.
+- Re-runs work for the included demo agent, whose state can be saved and resumed.
+  Your own agent can be recorded and diagnosed, but not yet re-run.
+- Detectors are rules, and the benchmark is synthetic. Stale data isn't detected.
+- The network block during replays is in-process (Python sockets), not an OS sandbox.
+- The scripted agent is a deterministic stand-in for an LLM; the Live AI and GPU paths use
+  a real model.
+
+## Status
+
+| | Milestone | |
+|---|---|---|
+| M0–M4 | Spec, infrastructure, demo agent, SDK and ingest, run inspector | done |
+| M5–M7 | Detectors, checkpoint replay engine, Replay Studio and comparison | done |
+| UI | FlightPath redesign: flight path, plain-language answers, simple/technical views | done |
+| M8 | Benchmark: 52 cases, 4 arms, intervals, held-out split, artifacts, dashboard | done |
+| M9 | GPU evaluation: transformers adapter, job scripts, resumable manifest, importer | built; GPU run pending |
+| M10 | Authentication, hardening, public deployment | next |
+
+## Docs
+
+- [Architecture](docs/architecture.md)
+- [Replay contract](docs/replay-contract.md)
+- [Data model](docs/data-model.md)
 - [Threat model](docs/threat-model.md)
-- [User stories → acceptance tests, MVP boundary](docs/acceptance-matrix.md)
-- [ADR-001: stack, queue, SCC environment, license](docs/decisions/ADR-001-core-stack.md)
-- [Original blueprint](docs/blueprint.md)
+- [Benchmark method](docs/benchmark.md)
+- [Developer runbook](docs/developer-runbook.md)
+- [UX redesign](docs/design/flightpath-redesign.md) and [next product ideas](docs/design/flightpath-next.md)
+- [ADR-001: core stack](docs/decisions/ADR-001-core-stack.md)
 
-## Safety principles (binding on all later milestones)
-
-- Metadata-only capture by default; secrets redacted before anything is stored.
-- Replays create **new** executions; the original run is never modified.
-- Replays use only simulated, allowlisted tools; no real email, payment or network calls.
-- Success is decided by ground-truth verifiers, never by the model's own claim.
-- Rule-based findings are evidence; LLM explanations are labelled *hypothesis*.
-- Every number in this README will come from a runnable script.
-
-## License
-
-[Apache-2.0](LICENSE) — rationale in ADR-001.
+Apache-2.0 licensed.

@@ -109,7 +109,15 @@ def _lookup_order(sb: Sandbox, args: LookupOrderInput) -> LookupOrderOutput:
     return LookupOrderOutput(order_id=args.order_id, **order)
 
 
+STALE_FAULT = "stale:lookup_inventory"
+
+
 def _lookup_inventory(sb: Sandbox, args: LookupInventoryInput) -> LookupInventoryOutput:
+    # Stale-retrieval fault: an outdated cached record is served instead of the live one
+    # (e.g. "out of stock" from last month while the item is back in stock).
+    stale = sb.world.get("stale_inventory", {}).get(args.sku)
+    if stale is not None and sb.consume_fault(STALE_FAULT):
+        return LookupInventoryOutput(sku=args.sku, **stale)
     item = sb.world["inventory"].get(args.sku)
     if item is None:
         raise ToolError(ErrorCode.SKU_NOT_FOUND, f"no inventory record for {args.sku}")
