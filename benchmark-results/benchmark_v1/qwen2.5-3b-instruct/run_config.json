@@ -1,0 +1,38 @@
+{
+  "arms": [
+    "baseline",
+    "no_change",
+    "repair",
+    "random"
+  ],
+  "benchmark": "benchmark_v1",
+  "draws": 5,
+  "environment": {
+    "cuda": "12.6",
+    "device": "cuda",
+    "dtype": "bfloat16",
+    "gpu": "NVIDIA H200 NVL",
+    "gpu_count": 1,
+    "job_id": "JOB_ID=8151388",
+    "platform": "Linux-4.18.0-553.172.1.el8_10.x86_64-x86_64-with-glibc2.28",
+    "python": "3.12.4",
+    "torch": "2.14.1+cu126",
+    "transformers": "5.20.1"
+  },
+  "family": null,
+  "limit": 0,
+  "max_tokens": 256,
+  "model": "hf:Qwen/Qwen2.5-3B-Instruct",
+  "model_id": "Qwen/Qwen2.5-3B-Instruct",
+  "model_revision": null,
+  "out": "benchmark-results/benchmark_v1/qwen2.5-3b-instruct",
+  "price_in": null,
+  "price_out": null,
+  "repeats": 3,
+  "resume": true,
+  "revision": null,
+  "seed": 7,
+  "split": "all",
+  "temperature": 0.2,
+  "traces": true
+}

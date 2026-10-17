@@ -48,7 +48,7 @@ def test_flagship_failure_findings_cite_real_events() -> None:
     by_id = {e["event_id"]: e for e in events}
     for f in findings:
         assert f.evidence_event_ids and all(i in by_id for i in f.evidence_event_ids)
-        assert f.detector_version == "1.0" and f.kind == "verified"
+        assert f.detector_version == "1.1" and f.kind == "verified"
     schema = next(f for f in findings if f.category == "tool_schema_mismatch")
     assert len(schema.evidence_event_ids) == 7
     assert all(
@@ -111,4 +111,25 @@ def test_evaluation_is_reproducible_and_meets_regression_floor() -> None:
     assert a.model_dump() == b.model_dump()
     assert a.fixtures == 6
     # Regression floor, not a claim about unseen data (see the evaluation caveat).
-    assert all((c.recall or 0) >= 1.0 and (c.precision or 0) >= 1.0 for c in a.per_category)
+    labelled = [c for c in a.per_category if c.tp + c.fn]
+    assert len(labelled) == 5  # repeated_action has no demo fixture; real models hit it
+    assert all(c.recall == 1.0 and c.precision == 1.0 for c in labelled)
+    assert all(c.fp == 0 for c in a.per_category)
+
+
+def test_repeated_action_flags_a_second_side_effect() -> None:
+    once = [
+        tool_end(1, "draft_response", "ok"),
+        tool_end(2, "submit_resolution", "ok"),
+    ]
+    assert "repeated_action" not in cats(once)
+    twice = [*once, tool_end(3, "draft_response", "ok"), tool_end(4, "submit_resolution", "ok")]
+    found = [f for f in analyze(twice) if f.category == "repeated_action"]
+    assert [f.title for f in found] == [
+        "draft_response ran 2 times",
+        "submit_resolution ran 2 times",
+    ]
+    assert all(len(f.evidence_event_ids) == 2 for f in found)
+    # A failed repeat left no effect and is not counted.
+    failed = [*once, tool_end(3, "submit_resolution", "error", error_code="INVALID_ARGUMENT")]
+    assert "repeated_action" not in cats(failed)

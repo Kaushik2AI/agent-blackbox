@@ -139,7 +139,7 @@ benchmark: ## Rebuild the benchmark from scratch: 52 cases x 4 arms -> runs, sum
 benchmark-report: ## Recompute summary + charts from an existing runs.jsonl (BENCH_OUT=...)
 	python -m evaluation.benchmark report --out $(BENCH_OUT)
 
-benchmark-import: ## Load a results folder into the app (BENCH_OUT=...; needs Postgres up)
+benchmark-import: ## Load a results folder into the app (BENCH_OUT=...; run make services-up first)
 	cd $(API) && python -m app.eval_import ../../$(BENCH_OUT)
 
 benchmark-dataset: ## Regenerate the committed benchmark cases (only when changing the generator)

@@ -112,6 +112,13 @@ def markdown(summary: dict[str, Any]) -> str:
         f"Failed runs where at least one detector fired: {pct(det['coverage_on_failed'])}.",
         f"Passed runs where a detector fired anyway: {pct(det['false_alarm_on_passed'])}.",
         "",
+        "Failed runs by most likely cause: "
+        + (
+            ", ".join(f"{k} {v}" for k, v in det.get("failure_causes", {}).items())
+            or "no failed runs"
+        )
+        + ".",
+        "",
         "## Latency per run",
         "",
         "| Arm | Median | p95 | Mean tokens |",

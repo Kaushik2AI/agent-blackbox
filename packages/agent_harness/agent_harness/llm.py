@@ -24,6 +24,20 @@ import httpx
 from agent_harness.model import Action, Finish, ToolCall
 from agent_harness.tools import TOOLS
 
+# Bumped whenever the prompt or the conversation format changes; recorded with results.
+PROMPT_VERSION = "2"
+
+# Status lines added after a successful call with a lasting effect. Without them a small
+# model sees "Result of submit_resolution: {...}" and often starts the reply-and-close
+# sequence again, which saves duplicates (seen with Qwen2.5-3B in the first GPU run).
+_DONE_NOTES = {
+    "draft_response": "The reply draft is saved. Do not write another one.",
+    "submit_resolution": (
+        "The resolution is saved and the ticket is closed. Nothing is left to do: "
+        'answer with {"note": "<short summary>", "finish": "completed"}.'
+    ),
+}
+
 
 class ModelUnavailable(RuntimeError):
     """The model endpoint could not be reached or refused the request."""
@@ -69,6 +83,8 @@ How to work:
 3. Choose "exchange" if they asked for one and the item is in stock, otherwise "refund".
    Read the policy for the option you chose.
 4. Write ONE reply draft for the customer, then submit ONE resolution, then finish.
+   draft_response and submit_resolution each save something permanent: call each of them
+   exactly once. After submit_resolution succeeds the ticket is closed; finish right away.
 
 Answer with ONE JSON object and nothing else:
 {{"note": "<short sentence: what you do and why>", "tool": "<tool name>", "args": {{...}}}}
@@ -97,6 +113,8 @@ def build_messages(state: dict[str, Any]) -> list[dict[str, str]]:
         messages.append({"role": "assistant", "content": json.dumps(action)})
         if step["ok"]:
             body = f"Result of {step['tool']}: {json.dumps(step['result'])}"
+            if step["tool"] in _DONE_NOTES:
+                body += "\n" + _DONE_NOTES[step["tool"]]
         else:
             body = f"Error from {step['tool']}: {step['error_code']}: {step.get('error', '')}"
         messages.append({"role": "user", "content": body})

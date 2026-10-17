@@ -530,6 +530,7 @@ export type EvalBlock = {
   detectors: {
     per_category: Record<string, { tp: number; fp: number; fn: number; precision: RateOut; recall: RateOut }>;
     coverage_on_failed: RateOut;
+    failure_causes?: Record<string, number>;
     false_alarm_on_passed: RateOut;
   };
   latency: Record<string, { median_ms: number | null; p95_ms: number | null }>;

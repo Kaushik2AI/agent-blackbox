@@ -101,6 +101,7 @@ const PRIORITY = [
   "state_identity_mismatch",
   "tool_schema_mismatch",
   "tool_timeout",
+  "repeated_action",
   "retry_loop",
   "budget_exhausted",
 ];
@@ -111,6 +112,7 @@ const SYMPTOM: Record<string, string> = {
   tool_timeout: "a system timed out",
   budget_exhausted: "ran out of steps",
   state_identity_mismatch: "order mix-up",
+  repeated_action: "did a finished step again",
 };
 
 export function symptomLabel(category: string): string {
@@ -128,6 +130,8 @@ export type RootCause = {
 };
 
 function evidenceStep(f: Finding, steps: ToolStep[]): ToolStep | null {
+  // For a repeat, the interesting step is the second copy, not the first.
+  if (f.category === "repeated_action") return repeatedStep(steps);
   const bySpan = steps.find((s) => s.spanId && f.evidence_span_ids.includes(s.spanId));
   if (bySpan) return bySpan;
   // Live recordings carry no span ids: fall back to the first step that matches.
@@ -135,6 +139,17 @@ function evidenceStep(f: Finding, steps: ToolStep[]): ToolStep | null {
   if (f.category === "tool_timeout") return steps.find((s) => s.errorCode === "TIMEOUT") ?? null;
   if (f.category === "retry_loop") return steps.find((s) => !s.ok) ?? null;
   if (f.category === "state_identity_mismatch") return steps.find((s) => s.tool === "submit_resolution") ?? null;
+  return null;
+}
+
+/** The first successful draft/resolution step that repeats an earlier one. */
+function repeatedStep(steps: ToolStep[]): ToolStep | null {
+  const seen = new Set<string>();
+  for (const s of steps) {
+    if (!s.ok || (s.tool !== "draft_response" && s.tool !== "submit_resolution")) continue;
+    if (seen.has(s.tool)) return s;
+    seen.add(s.tool);
+  }
   return null;
 }
 
@@ -180,6 +195,13 @@ export function rootCause(
       title = "Closed the ticket on the wrong order";
       detail = "The agent looked up one order but recorded the decision against a different one.";
       break;
+    case "repeated_action":
+      title = "Didn't stop when the work was done";
+      detail =
+        step?.tool === "draft_response"
+          ? "The reply was already written, but the agent wrote it again. A one-step change can't fix this; the agent's instructions should say when the work is done."
+          : "The ticket was already closed, but the agent closed it again. A one-step change can't fix this; the agent's instructions should say when the work is done.";
+      break;
     case "retry_loop":
       title = "Repeated a failing step";
       detail = "It tried the same thing again and again instead of changing its approach.";
@@ -223,6 +245,15 @@ export function narrate(
     if (a && b && a !== b) {
       return `The agent looked up order ${a} but closed the ticket for order ${b}. The customer who wrote in got nothing, and someone else's order was changed.`;
     }
+  }
+
+  if (cause?.category === "repeated_action") {
+    const count = (tool: string) => tools.filter((s) => s.ok && s.tool === tool).length;
+    const times = (n: number) => (n === 2 ? "twice" : `${n} times`);
+    const extra: string[] = [];
+    if (count("draft_response") > 1) extra.push(`wrote the reply ${times(count("draft_response"))}`);
+    if (count("submit_resolution") > 1) extra.push(`closed the ticket ${times(count("submit_resolution"))}`);
+    return `The agent did the right steps, but it didn't stop when the work was done: it ${joinList(extra)}. Each extra call saved another copy, so the outcome check failed.`;
   }
 
   const parts: string[] = [];

@@ -1,6 +1,6 @@
 # FlightPath benchmark results: benchmark_v1
 
-Agent: `stub-planner-v1` (stub). Agent harness 0.3.0. Seed 7.
+Agent: `stub-planner-v1` (stub). Agent harness 0.3.1. Seed 7.
 52 cases, 296 runs. Generated from `runs.jsonl` by `python -m evaluation.benchmark`.
 
 | Metric | All cases | Dev | Held-out |
@@ -35,18 +35,21 @@ Agent: `stub-planner-v1` (stub). Agent harness 0.3.0. Seed 7.
 | tool_timeout | 6 | 0 | 0 | 100% (6/6; 95% CI 61-100%) | 100% (6/6; 95% CI 61-100%) |
 | budget_exhausted | 14 | 0 | 0 | 100% (14/14; 95% CI 78-100%) | 100% (14/14; 95% CI 78-100%) |
 | state_identity_mismatch | 6 | 0 | 0 | 100% (6/6; 95% CI 61-100%) | 100% (6/6; 95% CI 61-100%) |
+| repeated_action | 0 | 0 | 0 | n/a (0 runs) | n/a (0 runs) |
 
 Failed runs where at least one detector fired: 81% (26/32; 95% CI 65-91%).
 Passed runs where a detector fired anyway: 0% (0/20; 95% CI 0-16%).
+
+Failed runs by most likely cause: tool_schema_mismatch 14, none 6, state_identity_mismatch 6, tool_timeout 6.
 
 ## Latency per run
 
 | Arm | Median | p95 | Mean tokens |
 |---|---|---|---|
-| baseline | 10.35 ms | 20.72 ms | 0.0 |
-| no_change | 8.08 ms | 15.61 ms | 0.0 |
-| repair | 7.92 ms | 10.6 ms | 0.0 |
-| random | 7.77 ms | 12.03 ms | 0.0 |
+| baseline | 9.02 ms | 13.31 ms | 0.0 |
+| no_change | 7.19 ms | 10.92 ms | 0.0 |
+| repair | 7.19 ms | 8.24 ms | 0.0 |
+| random | 6.83 ms | 9.26 ms | 0.0 |
 
 ## How to read this
 

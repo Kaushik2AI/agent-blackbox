@@ -53,6 +53,24 @@ def _tokens(rows: list[Record]) -> dict[str, Any]:
     }
 
 
+# Same order the app uses to pick the "most likely cause" among several findings.
+CAUSE_PRIORITY = (
+    "state_identity_mismatch",
+    "tool_schema_mismatch",
+    "tool_timeout",
+    "repeated_action",
+    "retry_loop",
+    "budget_exhausted",
+)
+
+
+def main_cause(findings: list[str]) -> str:
+    for cat in CAUSE_PRIORITY:
+        if cat in findings:
+            return cat
+    return findings[0] if findings else "none"
+
+
 def _detectors(baseline: list[Record]) -> dict[str, Any]:
     per: dict[str, dict[str, Any]] = {}
     for cat in CATEGORIES:
@@ -72,7 +90,15 @@ def _detectors(baseline: list[Record]) -> dict[str, Any]:
         }
     failed = [r for r in baseline if not r["passed"]]
     covered = sum(1 for r in failed if r.get("findings"))
+    causes: dict[str, int] = {}
+    for r in failed:
+        cause = main_cause(list(r.get("findings") or []))
+        causes[cause] = causes.get(cause, 0) + 1
     return {
+        # Failed runs by their most likely cause ("none": no detector fired). Unlike the
+        # per-category table this needs no labels, so it is the one to read for real
+        # models, whose mistakes are their own rather than the case's planted fault.
+        "failure_causes": dict(sorted(causes.items(), key=lambda kv: (-kv[1], kv[0]))),
         "per_category": per,
         # Failed runs where at least one detector fired / failed runs.
         "coverage_on_failed": rate(covered, len(failed)),

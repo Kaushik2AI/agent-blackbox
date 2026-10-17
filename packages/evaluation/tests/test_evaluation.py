@@ -12,8 +12,8 @@ from agent_harness.runner import run_fixture
 
 from evaluation import benchmark, dataset
 from evaluation.arms import CaseRunner, RunConfig, canonical
-from evaluation.hf import choose_model, json_complete
-from evaluation.metrics import summarize
+from evaluation.hf import TransformersModel, choose_model, json_complete
+from evaluation.metrics import main_cause, summarize
 from evaluation.report import bar_chart_svg, to_csv
 from evaluation.stats import quantile, rate, wilson
 
@@ -134,6 +134,15 @@ def test_detector_scoring() -> None:
     assert (loop["tp"], loop["fp"], loop["fn"]) == (1, 1, 1)
     assert det["coverage_on_failed"]["k"] == 1 and det["coverage_on_failed"]["n"] == 2
     assert det["false_alarm_on_passed"]["k"] == 1
+    assert det["failure_causes"] == {"none": 1, "retry_loop": 1}
+
+
+def test_main_cause_follows_the_app_priority() -> None:
+    assert main_cause(["budget_exhausted", "retry_loop", "tool_schema_mismatch"]) == (
+        "tool_schema_mismatch"
+    )
+    assert main_cause(["budget_exhausted", "repeated_action"]) == "repeated_action"
+    assert main_cause([]) == "none"
 
 
 # ------------------------------------------------------------------ runner
@@ -214,3 +223,58 @@ def test_json_stop_and_model_choice() -> None:
     assert json_complete('ok {"finish": "completed"} trailing')
     assert choose_model("auto", 40.0, 4) == "Qwen/Qwen2.5-3B-Instruct"
     assert choose_model("auto", None, 4) == "Qwen/Qwen2.5-0.5B-Instruct"
+
+
+class _SeededFakeGenerator:
+    """Stands in for a sampling model: always takes the right steps, but the reply text
+    depends on the sampling seed, like real sampling would."""
+
+    model_id = "fake/sampler"
+
+    def __init__(self) -> None:
+        self.seeds: list[int | None] = []
+
+    def chat(
+        self, messages: list[dict[str, str]], temperature: float, max_tokens: int, seed: int | None
+    ) -> dict[str, Any]:
+        import re
+
+        self.seeds.append(seed)
+        ticket = messages[1]["content"]
+        order = re.search(r"Order id: (\S+?)\.", ticket)
+        customer = re.search(r"Customer id: (\S+?)\.", ticket)
+        assert order and customer
+        done = sum(m["role"] == "assistant" for m in messages)
+        sku = ""
+        for m in messages:
+            if m["content"].startswith("Result of lookup_order: "):
+                sku = json.loads(m["content"].split(": ", 1)[1].splitlines()[0])["sku"]
+        actions: list[dict[str, Any]] = [
+            {"tool": "lookup_order", "args": {"order_id": order.group(1)}},
+            {"tool": "lookup_inventory", "args": {"sku": sku}},
+            {"tool": "get_policy", "args": {"policy_key": "exchange"}},
+            {
+                "tool": "draft_response",
+                "args": {"customer_id": customer.group(1), "text": f"reply {seed}"},
+            },
+            {
+                "tool": "submit_resolution",
+                "args": {"order_id": order.group(1), "choice": "exchange"},
+            },
+            {"finish": "completed"},
+        ]
+        text = json.dumps(actions[min(done, 5)])
+        return {"text": text, "prompt_tokens": 1, "completion_tokens": 1}
+
+
+def test_a_sampling_model_replays_exactly_from_a_saved_step() -> None:
+    gen = _SeededFakeGenerator()
+    model = TransformersModel(gen, 0.7, 64)  # type: ignore[arg-type]
+    cfg = RunConfig(model_spec="hf:fake", model_id="fake/sampler", model_factory=model.reseed)
+    rows = CaseRunner(cfg, None).run_case(_cases("control_exchange")[0])
+    by = {r["arm"]: r for r in rows}
+    assert by["baseline"]["passed"] is True
+    # The replay restarts mid-run, yet samples the same reply text as the original.
+    assert by["no_change"]["restart_call_index"] > 0
+    assert by["no_change"]["replay_valid"] is True
+    assert all(s is not None for s in gen.seeds)

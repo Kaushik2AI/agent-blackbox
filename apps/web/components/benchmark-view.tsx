@@ -5,6 +5,7 @@ import { type EvalBlock, type EvalSummary, evalApi, type RateOut } from "@/lib/a
 import { href } from "@/lib/format";
 import { useApi } from "@/lib/use-api";
 import { useViewMode } from "@/lib/view-mode";
+import { symptomLabel } from "@/lib/story";
 import { Card, ErrorBox, Icon, Kpi, Loading, Pill, Segmented } from "./ui";
 
 type Split = "all" | "dev" | "heldout";
@@ -238,6 +239,14 @@ function DetectorTable({ b }: { b: EvalBlock }) {
           </tbody>
         </table>
       </div>
+      {det.failure_causes && Object.keys(det.failure_causes).length > 0 && (
+        <p className="border-t border-line px-4 py-3 text-[13px] text-fg-2" data-testid="failure-causes">
+          Failed runs by most likely cause:{" "}
+          {Object.entries(det.failure_causes)
+            .map(([cat, n]) => `${cat === "none" ? "nothing detected" : symptomLabel(cat)} ${n}`)
+            .join(" · ")}
+        </p>
+      )}
     </Card>
   );
 }

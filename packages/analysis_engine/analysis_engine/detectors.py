@@ -18,7 +18,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-DETECTOR_VERSION = "1.0"
+DETECTOR_VERSION = "1.1"
 RETRY_LOOP_THRESHOLD = 4  # identical failing calls in a row (default retry budget is 3)
 
 Category = Literal[
@@ -27,6 +27,7 @@ Category = Literal[
     "tool_timeout",
     "budget_exhausted",
     "state_identity_mismatch",
+    "repeated_action",
 ]
 CATEGORIES: tuple[Category, ...] = (
     "tool_schema_mismatch",
@@ -34,7 +35,10 @@ CATEGORIES: tuple[Category, ...] = (
     "tool_timeout",
     "budget_exhausted",
     "state_identity_mismatch",
+    "repeated_action",
 )
+# Tools whose successful call leaves a lasting effect; doing one twice is a bug.
+SIDE_EFFECT_TOOLS = ("draft_response", "submit_resolution")
 Severity = Literal["critical", "high", "medium", "low"]
 
 Event = dict[str, Any]
@@ -237,12 +241,42 @@ def detect_state_identity_mismatch(events: Sequence[Event]) -> list[Finding]:
     return findings
 
 
+def detect_repeated_action(events: Sequence[Event]) -> list[Finding]:
+    """A tool with a lasting effect (writing the reply, closing the ticket) succeeded more
+    than once: the agent did not notice the work was already done."""
+    findings = []
+    ends = [e for e in _tool_ends(events) if e.get("status") == "ok"]
+    for tool in SIDE_EFFECT_TOOLS:
+        hits = [e for e in ends if e.get("tool_name") == tool]
+        if len(hits) < 2:
+            continue
+        ids, spans = _ids(hits)
+        what = "closed the ticket" if tool == "submit_resolution" else "wrote a reply draft"
+        findings.append(
+            Finding(
+                category="repeated_action",
+                severity="high",
+                title=f"{tool} ran {len(hits)} times",
+                explanation=(
+                    f"The agent {what} {len(hits)} times (events "
+                    + ", ".join(f"#{e['sequence_no']}" for e in hits)
+                    + "). It should happen once; every extra call saved another copy."
+                ),
+                evidence_event_ids=ids,
+                evidence_span_ids=spans,
+                detector="repeated_action",
+            )
+        )
+    return findings
+
+
 DETECTORS: tuple[Callable[[Sequence[Event]], list[Finding]], ...] = (
     detect_tool_schema_mismatch,
     detect_retry_loop,
     detect_tool_timeout,
     detect_budget_exhausted,
     detect_state_identity_mismatch,
+    detect_repeated_action,
 )
 
 

@@ -1,5 +1,5 @@
 {
-  "agent_version": "0.3.0",
+  "agent_version": "0.3.1",
   "benchmark_version": "benchmark_v1",
   "cases": 52,
   "decoding": null,
@@ -278,6 +278,12 @@
           "n": 32,
           "rate": 0.8125
         },
+        "failure_causes": {
+          "none": 6,
+          "state_identity_mismatch": 6,
+          "tool_schema_mismatch": 14,
+          "tool_timeout": 6
+        },
         "false_alarm_on_passed": {
           "ci_high": 0.1611,
           "ci_low": 0.0,
@@ -304,6 +310,25 @@
               "rate": 1.0
             },
             "tp": 14
+          },
+          "repeated_action": {
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
           },
           "retry_loop": {
             "fn": 0,
@@ -393,20 +418,20 @@
       },
       "latency": {
         "baseline": {
-          "median_ms": 10.35,
-          "p95_ms": 20.72
+          "median_ms": 9.02,
+          "p95_ms": 13.31
         },
         "no_change": {
-          "median_ms": 8.08,
-          "p95_ms": 15.61
+          "median_ms": 7.19,
+          "p95_ms": 10.92
         },
         "random": {
-          "median_ms": 7.77,
-          "p95_ms": 12.03
+          "median_ms": 6.83,
+          "p95_ms": 9.26
         },
         "repair": {
-          "median_ms": 7.92,
-          "p95_ms": 10.6
+          "median_ms": 7.19,
+          "p95_ms": 8.24
         }
       },
       "no_change_recovery": {
@@ -506,6 +531,12 @@
           "n": 22,
           "rate": 0.8182
         },
+        "failure_causes": {
+          "none": 4,
+          "state_identity_mismatch": 4,
+          "tool_schema_mismatch": 10,
+          "tool_timeout": 4
+        },
         "false_alarm_on_passed": {
           "ci_high": 0.2153,
           "ci_low": 0.0,
@@ -532,6 +563,25 @@
               "rate": 1.0
             },
             "tp": 10
+          },
+          "repeated_action": {
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
           },
           "retry_loop": {
             "fn": 0,
@@ -621,20 +671,20 @@
       },
       "latency": {
         "baseline": {
-          "median_ms": 10.05,
-          "p95_ms": 20.16
+          "median_ms": 8.91,
+          "p95_ms": 11.93
         },
         "no_change": {
-          "median_ms": 8.39,
-          "p95_ms": 14.53
+          "median_ms": 7.17,
+          "p95_ms": 10.77
         },
         "random": {
-          "median_ms": 7.82,
-          "p95_ms": 13.48
+          "median_ms": 7.02,
+          "p95_ms": 9.2
         },
         "repair": {
-          "median_ms": 7.87,
-          "p95_ms": 9.28
+          "median_ms": 7.05,
+          "p95_ms": 8.19
         }
       },
       "no_change_recovery": {
@@ -734,6 +784,12 @@
           "n": 10,
           "rate": 0.8
         },
+        "failure_causes": {
+          "none": 2,
+          "state_identity_mismatch": 2,
+          "tool_schema_mismatch": 4,
+          "tool_timeout": 2
+        },
         "false_alarm_on_passed": {
           "ci_high": 0.3903,
           "ci_low": 0.0,
@@ -760,6 +816,25 @@
               "rate": 1.0
             },
             "tp": 4
+          },
+          "repeated_action": {
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
           },
           "retry_loop": {
             "fn": 0,
@@ -849,20 +924,20 @@
       },
       "latency": {
         "baseline": {
-          "median_ms": 10.44,
-          "p95_ms": 19.07
+          "median_ms": 9.37,
+          "p95_ms": 15.31
         },
         "no_change": {
-          "median_ms": 7.9,
-          "p95_ms": 15.3
+          "median_ms": 7.21,
+          "p95_ms": 12.59
         },
         "random": {
-          "median_ms": 6.76,
-          "p95_ms": 9.02
+          "median_ms": 6.22,
+          "p95_ms": 9.24
         },
         "repair": {
-          "median_ms": 7.98,
-          "p95_ms": 10.89
+          "median_ms": 7.32,
+          "p95_ms": 11.82
         }
       },
       "no_change_recovery": {

@@ -182,11 +182,18 @@ class TransformersModel(OpenAICompatModel):
         self.seed = seed
         return self
 
+    def decision_seed(self, messages: list[dict[str, str]]) -> int | None:
+        """The sampling seed of one decision depends only on the run's seed and how far
+        the conversation is (its length). A run restarted from a saved step therefore
+        draws exactly the samples the original run drew from that step on, so a replay
+        with nothing changed can reproduce it, and the arms differ only by their change."""
+        return None if self.seed is None else self.seed + len(messages)
+
     def _complete(self, messages: list[dict[str, str]]) -> tuple[str, dict[str, int]]:
         cfg = self.config
-        out = self.generator.chat(messages, cfg.temperature, cfg.max_tokens, self.seed)
-        if self.seed is not None:
-            self.seed += 1  # a different but reproducible stream for the next decision
+        out = self.generator.chat(
+            messages, cfg.temperature, cfg.max_tokens, self.decision_seed(messages)
+        )
         text = "".join(ch for ch in out["text"] if ch >= " " or ch in "\n\t")
         return text, {
             "input_tokens": out["prompt_tokens"],

@@ -234,7 +234,7 @@ class CaseRunner:
                     rng = random.Random(int(run_key("random", base_seed, draw), 16))
                     change = random_intervention(base, checkpoints, rng)
                     run, batches, fid = self._fork(
-                        case, checkpoints, change.call_index, change, base_id, base_seed + draw + 1
+                        case, checkpoints, change.call_index, change, base_id, base_seed
                     )
                     out.append(
                         self._record(case, "random", repeat, draw, run, batches, fid, base_id,

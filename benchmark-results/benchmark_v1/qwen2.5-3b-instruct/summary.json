@@ -1,0 +1,1031 @@
+{
+  "agent_version": "0.3.1",
+  "benchmark_version": "benchmark_v1",
+  "cases": 52,
+  "decoding": {
+    "max_tokens": 256,
+    "prompt_version": "2",
+    "temperature": 0.2
+  },
+  "definitions": "Benchmark metrics from run records. Every number states its denominator.\n\nDefinitions (also printed in the report):\n  success rate        baseline runs that passed the outcome check / baseline runs\n  repair coverage     failed baseline runs for which a repair rule produced a change /\n                      failed baseline runs\n  recovery (repair)   failed baseline runs that passed after the repair /\n                      failed baseline runs        (no change produced = not recovered)\n  recovery (random)   random-change runs that passed / random-change runs on failed cases\n  replay validity     no-change replays whose outcome, ending and saved effects match\n                      the baseline / no-change replays\n  false benefit       repair recoveries where the no-change replay from the same step\n                      ALSO passed (so the change was not needed) / repair recoveries\n  detector P/R        per category, over baseline runs, against the case labels\n",
+  "families": [
+    {
+      "cases": 8,
+      "family": "control_exchange",
+      "random_recovery": {
+        "ci_high": null,
+        "ci_low": null,
+        "k": 0,
+        "n": 0,
+        "rate": null
+      },
+      "repair_recovery": {
+        "ci_high": null,
+        "ci_low": null,
+        "k": 0,
+        "n": 0,
+        "rate": null
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.862,
+        "k": 24,
+        "n": 24,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 1.0,
+        "ci_low": 0.862,
+        "k": 24,
+        "n": 24,
+        "rate": 1.0
+      }
+    },
+    {
+      "cases": 6,
+      "family": "control_recovered_timeout",
+      "random_recovery": {
+        "ci_high": 0.9638,
+        "ci_low": 0.3755,
+        "k": 4,
+        "n": 5,
+        "rate": 0.8
+      },
+      "repair_recovery": {
+        "ci_high": 0.5615,
+        "ci_low": 0.0,
+        "k": 0,
+        "n": 3,
+        "rate": 0.0
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.8064,
+        "k": 16,
+        "n": 16,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 0.9416,
+        "ci_low": 0.6078,
+        "k": 15,
+        "n": 18,
+        "rate": 0.8333
+      }
+    },
+    {
+      "cases": 6,
+      "family": "control_refund",
+      "random_recovery": {
+        "ci_high": 0.4042,
+        "ci_low": 0.0179,
+        "k": 1,
+        "n": 10,
+        "rate": 0.1
+      },
+      "repair_recovery": {
+        "ci_high": 0.4899,
+        "ci_low": 0.0,
+        "k": 0,
+        "n": 4,
+        "rate": 0.0
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.8064,
+        "k": 16,
+        "n": 16,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 0.91,
+        "ci_low": 0.5479,
+        "k": 14,
+        "n": 18,
+        "rate": 0.7778
+      }
+    },
+    {
+      "cases": 8,
+      "family": "invalid_argument",
+      "random_recovery": {
+        "ci_high": null,
+        "ci_low": null,
+        "k": 0,
+        "n": 0,
+        "rate": null
+      },
+      "repair_recovery": {
+        "ci_high": null,
+        "ci_low": null,
+        "k": 0,
+        "n": 0,
+        "rate": null
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.862,
+        "k": 24,
+        "n": 24,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 1.0,
+        "ci_low": 0.862,
+        "k": 24,
+        "n": 24,
+        "rate": 1.0
+      }
+    },
+    {
+      "cases": 6,
+      "family": "persistent_timeout",
+      "random_recovery": {
+        "ci_high": 0.4207,
+        "ci_low": 0.1416,
+        "k": 9,
+        "n": 35,
+        "rate": 0.2571
+      },
+      "repair_recovery": {
+        "ci_high": 1.0,
+        "ci_low": 0.6457,
+        "k": 7,
+        "n": 7,
+        "rate": 1.0
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.8241,
+        "k": 18,
+        "n": 18,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 0.7969,
+        "ci_low": 0.3862,
+        "k": 11,
+        "n": 18,
+        "rate": 0.6111
+      }
+    },
+    {
+      "cases": 6,
+      "family": "repeat_loop",
+      "random_recovery": {
+        "ci_high": null,
+        "ci_low": null,
+        "k": 0,
+        "n": 0,
+        "rate": null
+      },
+      "repair_recovery": {
+        "ci_high": null,
+        "ci_low": null,
+        "k": 0,
+        "n": 0,
+        "rate": null
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.8241,
+        "k": 18,
+        "n": 18,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 1.0,
+        "ci_low": 0.8241,
+        "k": 18,
+        "n": 18,
+        "rate": 1.0
+      }
+    },
+    {
+      "cases": 6,
+      "family": "stale_retrieval",
+      "random_recovery": {
+        "ci_high": 0.2726,
+        "ci_low": 0.1072,
+        "k": 14,
+        "n": 80,
+        "rate": 0.175
+      },
+      "repair_recovery": {
+        "ci_high": 0.1843,
+        "ci_low": 0.0,
+        "k": 0,
+        "n": 17,
+        "rate": 0.0
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.8157,
+        "k": 17,
+        "n": 17,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 0.2576,
+        "ci_low": 0.0099,
+        "k": 1,
+        "n": 18,
+        "rate": 0.0556
+      }
+    },
+    {
+      "cases": 6,
+      "family": "wrong_identity",
+      "random_recovery": {
+        "ci_high": null,
+        "ci_low": null,
+        "k": 0,
+        "n": 0,
+        "rate": null
+      },
+      "repair_recovery": {
+        "ci_high": 0.7935,
+        "ci_low": 0.0,
+        "k": 0,
+        "n": 1,
+        "rate": 0.0
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.8157,
+        "k": 17,
+        "n": 17,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 0.9901,
+        "ci_low": 0.7424,
+        "k": 17,
+        "n": 18,
+        "rate": 0.9444
+      }
+    }
+  ],
+  "model_id": "Qwen/Qwen2.5-3B-Instruct",
+  "model_revision": null,
+  "model_spec": "hf:Qwen/Qwen2.5-3B-Instruct",
+  "runs": 462,
+  "seed": 7,
+  "splits": {
+    "all": {
+      "baseline_runs": 156,
+      "detectors": {
+        "coverage_on_failed": {
+          "ci_high": 0.4211,
+          "ci_low": 0.1325,
+          "k": 8,
+          "n": 32,
+          "rate": 0.25
+        },
+        "failure_causes": {
+          "none": 24,
+          "repeated_action": 1,
+          "tool_timeout": 7
+        },
+        "false_alarm_on_passed": {
+          "ci_high": 0.2178,
+          "ci_low": 0.0938,
+          "k": 18,
+          "n": 124,
+          "rate": 0.1452
+        },
+        "per_category": {
+          "budget_exhausted": {
+            "fn": 42,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.0838,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 42,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "repeated_action": {
+            "fn": 0,
+            "fp": 2,
+            "precision": {
+              "ci_high": 0.6576,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 2,
+              "rate": 0.0
+            },
+            "recall": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "retry_loop": {
+            "fn": 42,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.0838,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 42,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "state_identity_mismatch": {
+            "fn": 18,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.1759,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 18,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "tool_schema_mismatch": {
+            "fn": 42,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.0838,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 42,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "tool_timeout": {
+            "fn": 0,
+            "fp": 7,
+            "precision": {
+              "ci_high": 0.8572,
+              "ci_low": 0.5242,
+              "k": 18,
+              "n": 25,
+              "rate": 0.72
+            },
+            "recall": {
+              "ci_high": 1.0,
+              "ci_low": 0.8241,
+              "k": 18,
+              "n": 18,
+              "rate": 1.0
+            },
+            "tp": 18
+          }
+        }
+      },
+      "failed_runs": 32,
+      "false_benefit": {
+        "ci_high": 0.3543,
+        "ci_low": 0.0,
+        "k": 0,
+        "n": 7,
+        "rate": 0.0
+      },
+      "latency": {
+        "baseline": {
+          "median_ms": 4035.44,
+          "p95_ms": 4806.32
+        },
+        "no_change": {
+          "median_ms": 2946.69,
+          "p95_ms": 3686.97
+        },
+        "random": {
+          "median_ms": 2518.7,
+          "p95_ms": 3880.41
+        },
+        "repair": {
+          "median_ms": 2977.41,
+          "p95_ms": 3290.32
+        }
+      },
+      "no_change_recovery": {
+        "ci_high": 0.1287,
+        "ci_low": 0.0,
+        "k": 0,
+        "n": 26,
+        "rate": 0.0
+      },
+      "random_any_draw_recovers": {
+        "ci_high": 0.863,
+        "ci_low": 0.5392,
+        "k": 19,
+        "n": 26,
+        "rate": 0.7308
+      },
+      "random_recovery": {
+        "ci_high": 0.2937,
+        "ci_low": 0.1534,
+        "k": 28,
+        "n": 130,
+        "rate": 0.2154
+      },
+      "repair_coverage": {
+        "ci_high": 0.3875,
+        "ci_low": 0.1102,
+        "k": 7,
+        "n": 32,
+        "rate": 0.2188
+      },
+      "repair_recovery": {
+        "ci_high": 0.3875,
+        "ci_low": 0.1102,
+        "k": 7,
+        "n": 32,
+        "rate": 0.2188
+      },
+      "repair_recovery_when_attempted": {
+        "ci_high": 1.0,
+        "ci_low": 0.6457,
+        "k": 7,
+        "n": 7,
+        "rate": 1.0
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.975,
+        "k": 150,
+        "n": 150,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 0.8508,
+        "ci_low": 0.7248,
+        "k": 124,
+        "n": 156,
+        "rate": 0.7949
+      },
+      "tokens": {
+        "baseline": {
+          "cost_usd": null,
+          "mean_tokens": 4238.6,
+          "runs": 156,
+          "tokens_in": 616233,
+          "tokens_out": 44986
+        },
+        "no_change": {
+          "cost_usd": null,
+          "mean_tokens": 3425.6,
+          "runs": 150,
+          "tokens_in": 481032,
+          "tokens_out": 32814
+        },
+        "random": {
+          "cost_usd": null,
+          "mean_tokens": 2619.2,
+          "runs": 130,
+          "tokens_in": 320342,
+          "tokens_out": 20154
+        },
+        "repair": {
+          "cost_usd": null,
+          "mean_tokens": 3268.4,
+          "runs": 7,
+          "tokens_in": 21416,
+          "tokens_out": 1463
+        }
+      }
+    },
+    "dev": {
+      "baseline_runs": 108,
+      "detectors": {
+        "coverage_on_failed": {
+          "ci_high": 0.4333,
+          "ci_low": 0.0851,
+          "k": 4,
+          "n": 19,
+          "rate": 0.2105
+        },
+        "failure_causes": {
+          "none": 15,
+          "tool_timeout": 4
+        },
+        "false_alarm_on_passed": {
+          "ci_high": 0.234,
+          "ci_low": 0.0874,
+          "k": 13,
+          "n": 89,
+          "rate": 0.1461
+        },
+        "per_category": {
+          "budget_exhausted": {
+            "fn": 30,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.1135,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 30,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "repeated_action": {
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "retry_loop": {
+            "fn": 30,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.1135,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 30,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "state_identity_mismatch": {
+            "fn": 12,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.2425,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 12,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "tool_schema_mismatch": {
+            "fn": 30,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.1135,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 30,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "tool_timeout": {
+            "fn": 0,
+            "fp": 5,
+            "precision": {
+              "ci_high": 0.8672,
+              "ci_low": 0.4687,
+              "k": 12,
+              "n": 17,
+              "rate": 0.7059
+            },
+            "recall": {
+              "ci_high": 1.0,
+              "ci_low": 0.7575,
+              "k": 12,
+              "n": 12,
+              "rate": 1.0
+            },
+            "tp": 12
+          }
+        }
+      },
+      "failed_runs": 19,
+      "false_benefit": {
+        "ci_high": 0.4899,
+        "ci_low": 0.0,
+        "k": 0,
+        "n": 4,
+        "rate": 0.0
+      },
+      "latency": {
+        "baseline": {
+          "median_ms": 4000.8,
+          "p95_ms": 4768.68
+        },
+        "no_change": {
+          "median_ms": 2932.86,
+          "p95_ms": 3623.43
+        },
+        "random": {
+          "median_ms": 2556.51,
+          "p95_ms": 3885.34
+        },
+        "repair": {
+          "median_ms": 2941.07,
+          "p95_ms": 3053.13
+        }
+      },
+      "no_change_recovery": {
+        "ci_high": 0.1843,
+        "ci_low": 0.0,
+        "k": 0,
+        "n": 17,
+        "rate": 0.0
+      },
+      "random_any_draw_recovers": {
+        "ci_high": 0.9044,
+        "ci_low": 0.5274,
+        "k": 13,
+        "n": 17,
+        "rate": 0.7647
+      },
+      "random_recovery": {
+        "ci_high": 0.2972,
+        "ci_low": 0.1288,
+        "k": 17,
+        "n": 85,
+        "rate": 0.2
+      },
+      "repair_coverage": {
+        "ci_high": 0.4333,
+        "ci_low": 0.0851,
+        "k": 4,
+        "n": 19,
+        "rate": 0.2105
+      },
+      "repair_recovery": {
+        "ci_high": 0.4333,
+        "ci_low": 0.0851,
+        "k": 4,
+        "n": 19,
+        "rate": 0.2105
+      },
+      "repair_recovery_when_attempted": {
+        "ci_high": 1.0,
+        "ci_low": 0.5101,
+        "k": 4,
+        "n": 4,
+        "rate": 1.0
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.965,
+        "k": 106,
+        "n": 106,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 0.8844,
+        "ci_low": 0.7415,
+        "k": 89,
+        "n": 108,
+        "rate": 0.8241
+      },
+      "tokens": {
+        "baseline": {
+          "cost_usd": null,
+          "mean_tokens": 4260.4,
+          "runs": 108,
+          "tokens_in": 428926,
+          "tokens_out": 31192
+        },
+        "no_change": {
+          "cost_usd": null,
+          "mean_tokens": 3381.5,
+          "runs": 106,
+          "tokens_in": 335501,
+          "tokens_out": 22942
+        },
+        "random": {
+          "cost_usd": null,
+          "mean_tokens": 2624.6,
+          "runs": 85,
+          "tokens_in": 209419,
+          "tokens_out": 13669
+        },
+        "repair": {
+          "cost_usd": null,
+          "mean_tokens": 3245.0,
+          "runs": 4,
+          "tokens_in": 12163,
+          "tokens_out": 817
+        }
+      }
+    },
+    "heldout": {
+      "baseline_runs": 48,
+      "detectors": {
+        "coverage_on_failed": {
+          "ci_high": 0.5763,
+          "ci_low": 0.1268,
+          "k": 4,
+          "n": 13,
+          "rate": 0.3077
+        },
+        "failure_causes": {
+          "none": 9,
+          "repeated_action": 1,
+          "tool_timeout": 3
+        },
+        "false_alarm_on_passed": {
+          "ci_high": 0.2938,
+          "ci_low": 0.0626,
+          "k": 5,
+          "n": 35,
+          "rate": 0.1429
+        },
+        "per_category": {
+          "budget_exhausted": {
+            "fn": 12,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.2425,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 12,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "repeated_action": {
+            "fn": 0,
+            "fp": 2,
+            "precision": {
+              "ci_high": 0.6576,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 2,
+              "rate": 0.0
+            },
+            "recall": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "retry_loop": {
+            "fn": 12,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.2425,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 12,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "state_identity_mismatch": {
+            "fn": 6,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.3903,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 6,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "tool_schema_mismatch": {
+            "fn": 12,
+            "fp": 0,
+            "precision": {
+              "ci_high": null,
+              "ci_low": null,
+              "k": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "ci_high": 0.2425,
+              "ci_low": 0.0,
+              "k": 0,
+              "n": 12,
+              "rate": 0.0
+            },
+            "tp": 0
+          },
+          "tool_timeout": {
+            "fn": 0,
+            "fp": 2,
+            "precision": {
+              "ci_high": 0.9285,
+              "ci_low": 0.4093,
+              "k": 6,
+              "n": 8,
+              "rate": 0.75
+            },
+            "recall": {
+              "ci_high": 1.0,
+              "ci_low": 0.6097,
+              "k": 6,
+              "n": 6,
+              "rate": 1.0
+            },
+            "tp": 6
+          }
+        }
+      },
+      "failed_runs": 13,
+      "false_benefit": {
+        "ci_high": 0.5615,
+        "ci_low": 0.0,
+        "k": 0,
+        "n": 3,
+        "rate": 0.0
+      },
+      "latency": {
+        "baseline": {
+          "median_ms": 4160.13,
+          "p95_ms": 5024.47
+        },
+        "no_change": {
+          "median_ms": 3048.27,
+          "p95_ms": 4039.13
+        },
+        "random": {
+          "median_ms": 2287.03,
+          "p95_ms": 3781.41
+        },
+        "repair": {
+          "median_ms": 3222.02,
+          "p95_ms": 3309.83
+        }
+      },
+      "no_change_recovery": {
+        "ci_high": 0.2991,
+        "ci_low": 0.0,
+        "k": 0,
+        "n": 9,
+        "rate": 0.0
+      },
+      "random_any_draw_recovers": {
+        "ci_high": 0.8794,
+        "ci_low": 0.3542,
+        "k": 6,
+        "n": 9,
+        "rate": 0.6667
+      },
+      "random_recovery": {
+        "ci_high": 0.3867,
+        "ci_low": 0.1424,
+        "k": 11,
+        "n": 45,
+        "rate": 0.2444
+      },
+      "repair_coverage": {
+        "ci_high": 0.5026,
+        "ci_low": 0.0818,
+        "k": 3,
+        "n": 13,
+        "rate": 0.2308
+      },
+      "repair_recovery": {
+        "ci_high": 0.5026,
+        "ci_low": 0.0818,
+        "k": 3,
+        "n": 13,
+        "rate": 0.2308
+      },
+      "repair_recovery_when_attempted": {
+        "ci_high": 1.0,
+        "ci_low": 0.4385,
+        "k": 3,
+        "n": 3,
+        "rate": 1.0
+      },
+      "replay_validity": {
+        "ci_high": 1.0,
+        "ci_low": 0.9197,
+        "k": 44,
+        "n": 44,
+        "rate": 1.0
+      },
+      "success": {
+        "ci_high": 0.8343,
+        "ci_low": 0.59,
+        "k": 35,
+        "n": 48,
+        "rate": 0.7292
+      },
+      "tokens": {
+        "baseline": {
+          "cost_usd": null,
+          "mean_tokens": 4189.6,
+          "runs": 48,
+          "tokens_in": 187307,
+          "tokens_out": 13794
+        },
+        "no_change": {
+          "cost_usd": null,
+          "mean_tokens": 3531.9,
+          "runs": 44,
+          "tokens_in": 145531,
+          "tokens_out": 9872
+        },
+        "random": {
+          "cost_usd": null,
+          "mean_tokens": 2609.1,
+          "runs": 45,
+          "tokens_in": 110923,
+          "tokens_out": 6485
+        },
+        "repair": {
+          "cost_usd": null,
+          "mean_tokens": 3299.7,
+          "runs": 3,
+          "tokens_in": 9253,
+          "tokens_out": 646
+        }
+      }
+    }
+  }
+}

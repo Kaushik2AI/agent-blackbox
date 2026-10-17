@@ -103,6 +103,18 @@ def test_history_is_replayed_into_the_conversation() -> None:
     assert any("Result of lookup_order" in m["content"] for m in last if m["role"] == "user")
 
 
+def test_the_model_is_told_when_the_ticket_is_closed() -> None:
+    seen: list[Any] = []
+    run_fixture("exchange_success", model=fake_model([json.dumps(a) for a in CORRECT], seen))
+    last = [m["content"] for m in seen[-1]["messages"] if m["role"] == "user"]
+    draft = next(m for m in last if m.startswith("Result of draft_response"))
+    closed = next(m for m in last if m.startswith("Result of submit_resolution"))
+    assert "Do not write another one" in draft
+    assert "ticket is closed" in closed and '"finish": "completed"' in closed
+    lookup = next(m for m in last if m.startswith("Result of lookup_order"))
+    assert "\n" not in lookup
+
+
 def test_unreadable_reply_is_retried_once_then_gives_up() -> None:
     run = run_fixture("exchange_success", model=fake_model(["hmm", "still no json"]))
     assert run.termination == "tool_failure"

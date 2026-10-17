@@ -13,6 +13,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from sqlalchemy.exc import OperationalError
+
 from app.config import get_settings
 from app.db import session_scope
 from app.services.evaluations import import_folder
@@ -23,10 +25,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("folder", type=Path, help="results folder (or a runs.jsonl file)")
     args = parser.parse_args(argv)
     settings = get_settings()
-    with session_scope() as session:
-        report = import_folder(
-            session, args.folder.resolve(), max_payload_bytes=settings.max_event_payload_bytes
+    try:
+        with session_scope() as session:
+            report = import_folder(
+                session, args.folder.resolve(), max_payload_bytes=settings.max_event_payload_bytes
+            )
+    except OperationalError:
+        print(
+            "Cannot reach the database. Start it first (make services-up, or make dev), "
+            "then run the import again.",
+            file=sys.stderr,
         )
+        return 2
     print(
         f"read {report.read} records: {report.imported} imported, "
         f"{report.duplicates} already present, {len(report.rejected)} rejected; "

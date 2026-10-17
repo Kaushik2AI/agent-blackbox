@@ -26,30 +26,49 @@ and lets you restart the run from that step with one change, safely, to prove th
 
 52 synthetic support tickets in 8 families (3 kinds of controls, wrong tool inputs, a
 looping lookup, a system that never answers, stale data, mixed-up customer orders), 16 of
-them held out. Every failed run is restarted three ways and judged by the outcome check:
+them held out. Every failed run is restarted three ways (FlightPath's suggested change, a
+random valid change, no change) and an outcome check that knows the right answer decides.
+Two agents were tested: a scripted agent that makes the planted mistake on purpose, and a
+real model, Qwen2.5-3B-Instruct, on a GPU (3 seeds per case).
 
-![Recovery of failed runs, by change](benchmark-results/benchmark_v1/scripted/charts/recovery.svg)
+| | Scripted agent | Qwen2.5-3B (real model) |
+|---|---|---|
+| Baseline success | 38% (20/52) | 79% (124/156) |
+| Failed runs fixed by FlightPath's suggested change | **81%** (26/32) | 22% (7/32) |
+| Fixed by a random valid change | 22% (35/160) | 22% (28/130) |
+| Fixed by restarting with nothing changed | 0% (0/32) | 0% (0/26) |
+| Failed runs where FlightPath proposed a change | 81% (26/32) | 22% (7/32) |
+| ...and that change then worked | 100% (26/26) | **100%** (7/7) |
+| Replays that reproduce the original run exactly | 100% (52/52) | 100% (150/150) |
 
-| Scripted agent, all 52 cases | Result (95% interval) |
-|---|---|
-| Baseline success | 38% (20/52; 26–52%) |
-| Failed runs fixed by FlightPath's suggested change | **81%** (26/32; 65–91%) |
-| Fixed by a random valid change (5 tries per case) | 22% (35/160; 16–29%) |
-| Fixed by restarting with nothing changed | 0% (0/32; 0–11%) |
-| Replays that reproduce the original run exactly | 100% (52/52; 93–100%) |
-| Held-out cases only: fixed by FlightPath's change | 80% (8/10; 49–94%) |
+![Recovery of failed runs, by change (scripted agent)](benchmark-results/benchmark_v1/scripted/charts/recovery.svg)
 
-Every number above is in [`summary.md`](benchmark-results/benchmark_v1/scripted/summary.md),
-computed from [`runs.jsonl`](benchmark-results/benchmark_v1/scripted/runs.jsonl) (one line
-per run) and rebuilt from scratch by `make benchmark` in about ten seconds.
+**What the real-model run shows.** Qwen didn't make the planted mistakes at all: it read
+product codes correctly, didn't loop and never mixed up orders. Its 32 failures were its
+own:
 
-**Read it honestly.** The cases are synthetic and the repair rules and detectors were
-written by the same team (against the demo fixtures, not these cases). The 6 *stale data*
-failures are not caught at all: no detector looks at data freshness yet, so FlightPath
-proposes nothing for them, and they count as not fixed. A recovered run shows that the
-change was followed by success; together with the two controls it is evidence, not proof,
-of the root cause. Real-model runs (below) repeat each case with several seeds because a
-real model doesn't behave the same way twice.
+- **17 stale data** (a month-old record says "out of stock", so it refunds instead of
+  exchanging). FlightPath has no detector for stale data, so it proposed nothing.
+- **7 a system that never answers.** Detected every time; FlightPath's change (answer as
+  the system would have) fixed **7 of 7**, against 26% for random changes and 0% for no
+  change.
+- **8 others** in the refund, recovered-timeout and mixed-up-order cases. In 7 no
+  detector fired; in 1 the model closed the ticket twice, which is detected but has no
+  one-step fix.
+
+So when FlightPath suggests a change, it works; the gap is **coverage**: on real-model
+failures it recognised only 7 of 32. Overall it is no better than a random change (22% vs
+22%) until it can see stale data and the other misses. That is the next milestone.
+
+Intervals, per-family tables and definitions: [scripted](benchmark-results/benchmark_v1/scripted/summary.md),
+[Qwen2.5-3B](benchmark-results/benchmark_v1/qwen2.5-3b-instruct/summary.md). Each is computed
+from its `runs.jsonl` (one line per run). The scripted run rebuilds with `make benchmark`
+in about ten seconds; the GPU run took 23 minutes on one GPU.
+
+**Read it honestly.** The cases are synthetic and the detectors and repair rules were
+written by the same team (against the demo fixtures, not these cases). A recovered run
+shows that the change was followed by success; together with the two controls it is
+evidence, not proof, of the root cause.
 
 ## How it works
 
@@ -160,9 +179,7 @@ make benchmark-import BENCH_OUT=benchmark-results/benchmark_v1/qwen2.5-3b-instru
 
 Each run records the model and its resolved revision, decoding settings, seed, agent and
 fixture versions, torch/CUDA versions, GPU and scheduler job id (never the host name).
-Method and metric definitions: [docs/benchmark.md](docs/benchmark.md). The real-model
-results are not in this README because they have not been run yet; the scripts have been
-exercised end to end on a CPU with a small model.
+Method and metric definitions: [docs/benchmark.md](docs/benchmark.md).
 
 ## Record your own agent
 
@@ -214,8 +231,8 @@ make check       # ruff + mypy --strict + tsc, all unit/integration tests, produ
 make test-e2e    # with `make dev` running: 7 browser tests (Playwright)
 ```
 
-Tests: 52 agent harness, 17 SDK, 9 detector, 65 benchmark, 88 API (against real
-Postgres and Redis), 21 web unit, 7 browser. Highlights: the source run is byte-for-byte
+Tests: 53 agent harness, 17 SDK, 10 detector, 67 benchmark, 88 API (against real
+Postgres and Redis), 22 web unit, 7 browser. Highlights: the source run is byte-for-byte
 unchanged after a replay; tampered checkpoints are refused; network access during a replay
 fails the job; the benchmark rebuilds identical results from scratch and resumes without
 duplicates; metric denominators are tested against hand-computed values.
@@ -226,7 +243,8 @@ duplicates; metric denominators are tested against hand-computed values.
   don't expose the API port on a network.
 - Re-runs work for the included demo agent, whose state can be saved and resumed.
   Your own agent can be recorded and diagnosed, but not yet re-run.
-- Detectors are rules, and the benchmark is synthetic. Stale data isn't detected.
+- Detectors are rules, and the benchmark is synthetic. Stale data and wrong decisions
+  aren't detected yet, which is most of what a real model gets wrong (see above).
 - The network block during replays is in-process (Python sockets), not an OS sandbox.
 - The scripted agent is a deterministic stand-in for an LLM; the Live AI and GPU paths use
   a real model.
@@ -239,8 +257,9 @@ duplicates; metric denominators are tested against hand-computed values.
 | M5–M7 | Detectors, checkpoint replay engine, Replay Studio and comparison | done |
 | UI | FlightPath redesign: flight path, plain-language answers, simple/technical views | done |
 | M8 | Benchmark: 52 cases, 4 arms, intervals, held-out split, artifacts, dashboard | done |
-| M9 | GPU evaluation: transformers adapter, job scripts, resumable manifest, importer | built; GPU run pending |
-| M10 | Authentication, hardening, public deployment | next |
+| M9 | GPU evaluation: Qwen2.5-3B on a GPU, 156 runs, results above | done |
+| M10 | Stale-data and wrong-decision detection (the coverage gap found in M9) | next |
+| M11 | Authentication, hardening, public deployment | planned |
 
 ## Docs
 

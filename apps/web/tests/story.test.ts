@@ -52,4 +52,19 @@ describe("story", () => {
     const c = rootCause([finding("state_identity_mismatch", [])], steps, { passed: false });
     expect(narrate(steps, { passed: false, fallback: "x" }, c)).toContain("closed the ticket for order ORD-1002");
   });
+
+  it("explains an agent that doesn't stop", () => {
+    const steps: TapeStep[] = [
+      call(0, "lookup_order", { order_id: "ORD-1001" }),
+      call(1, "draft_response", { customer_id: "C-1", text: "hi" }),
+      call(2, "submit_resolution", { order_id: "ORD-1001", choice: "exchange" }),
+      call(3, "draft_response", { customer_id: "C-1", text: "hi again" }),
+      call(4, "submit_resolution", { order_id: "ORD-1001", choice: "exchange" }),
+    ];
+    const c = rootCause([finding("budget_exhausted", []), finding("repeated_action", ["s1", "s3"])], steps, { passed: false });
+    expect(c?.title).toBe("Didn't stop when the work was done");
+    expect(c?.step?.callIndex).toBe(3);
+    expect(c?.symptoms.map((s) => s.category)).toEqual(["budget_exhausted"]);
+    expect(narrate(steps, { passed: false, fallback: "x" }, c)).toContain("wrote the reply twice and closed the ticket twice");
+  });
 });

@@ -36,7 +36,6 @@ from evaluation.report import load_runs, pct, write_all
 
 def build_config(args: argparse.Namespace) -> RunConfig:
     spec: str = args.model
-    decoding = None
     if spec == "stub":
         return RunConfig(
             model_spec="stub",
@@ -46,7 +45,13 @@ def build_config(args: argparse.Namespace) -> RunConfig:
             repeats=args.repeats,
             environment=environment(device_info=False),
         )
-    decoding = {"temperature": args.temperature, "max_tokens": args.max_tokens}
+    from agent_harness.llm import PROMPT_VERSION
+
+    decoding: dict[str, Any] = {
+        "temperature": args.temperature,
+        "max_tokens": args.max_tokens,
+        "prompt_version": PROMPT_VERSION,
+    }
     if spec.startswith("hf:"):
         from evaluation.hf import HFGenerator, TransformersModel
 
@@ -212,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
         "--repeats", type=int, default=1, help="baseline repeats per case (real models)"
     )
     run.add_argument("--seed", type=int, default=7)
-    run.add_argument("--temperature", type=float, default=0.7)
+    run.add_argument("--temperature", type=float, default=0.2)
     run.add_argument("--max-tokens", type=int, default=256)
     run.add_argument("--price-in", type=float, default=None, help="USD per 1k input tokens")
     run.add_argument("--price-out", type=float, default=None, help="USD per 1k output tokens")
