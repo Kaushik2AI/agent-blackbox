@@ -57,6 +57,14 @@ test("runs, a run page, Replay Studio and the benchmark load from the snapshot",
   await page.goto("benchmark/");
   await expect(page.getByTestId("benchmark-kpis")).toContainText("Baseline success");
   await expect(page.getByTestId("family-table")).toContainText("Wrong input (product name)");
+  // Real-model results are committed without their (large) traces, so only the scripted
+  // results link to recorded runs. Pick those when several results are loaded.
+  const picker = page.getByLabel("Benchmark results");
+  if (await picker.count()) {
+    const scripted = await picker.locator("option", { hasText: "stub" }).first().getAttribute("value");
+    await picker.selectOption(scripted ?? "");
+    await expect(page.getByTestId("benchmark-kpis")).toContainText("Baseline success");
+  }
   await page.getByTestId("case-table").locator("summary").click();
   await page.getByTestId("case-table").getByRole("link", { name: "baseline" }).first().click();
   await expect(page.getByTestId("run-title")).toBeVisible();

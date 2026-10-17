@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,7 +24,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.contracts import EventBatch
-from app.models import EvaluationRun
+from app.models import EvaluationRun, Execution
 from app.redaction import Redactor
 from app.services.ingest import IngestConflict, ingest_batch
 
@@ -182,12 +183,33 @@ def list_sources(session: Session) -> list[dict[str, Any]]:
     return out
 
 
+def _norm_id(value: Any) -> str | None:
+    try:
+        return str(uuid.UUID(str(value)))
+    except ValueError:
+        return None
+
+
+def _recorded_ids(session: Session, records: list[dict[str, Any]]) -> set[str]:
+    """The records' execution ids whose run is actually stored. Results folders often come
+    without traces.jsonl (it is large and not committed), and a link to a run that was never
+    imported would only lead to "not found"."""
+    wanted = {uuid.UUID(x) for r in records if (x := _norm_id(r.get("execution_id")))}
+    found: set[str] = set()
+    ids = sorted(wanted)
+    for i in range(0, len(ids), 1000):
+        rows = session.execute(select(Execution.id).where(Execution.id.in_(ids[i : i + 1000])))
+        found.update(str(x) for x in rows.scalars())
+    return found
+
+
 def source_summary(session: Session, source: str) -> dict[str, Any] | None:
     records = _records(session, source)
     if not records:
         return None
     summary = summarize(records)
     summary.pop("definitions", None)
+    recorded = _recorded_ids(session, records)
     # Per case: what each arm did, with links to the recorded runs when traces were imported.
     cases: dict[str, dict[str, Any]] = defaultdict(dict)
     for r in records:
@@ -200,10 +222,11 @@ def source_summary(session: Session, source: str) -> dict[str, Any] | None:
         if r["arm"] == "random":
             c.setdefault("random", []).append(bool(r["passed"]))
         else:
+            run_id = _norm_id(r.get("execution_id"))
             c[r["arm"]] = {
                 "passed": bool(r["passed"]),
                 "skipped": r.get("skipped"),
-                "execution_id": r.get("execution_id"),
+                "execution_id": run_id if run_id in recorded else None,
                 "findings": r.get("findings"),
                 "intervention": (r.get("intervention") or {}).get("label"),
             }

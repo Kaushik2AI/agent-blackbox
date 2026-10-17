@@ -4,6 +4,7 @@ dedupe, trace ingestion, summaries and CSV."""
 from __future__ import annotations
 
 import json
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -85,3 +86,30 @@ def test_invalid_and_secret_records_are_rejected(client: TestClient, tmp_path: P
     assert rep.imported == 1  # type: ignore[attr-defined]
     assert len(rep.rejected) == 3  # type: ignore[attr-defined]
     assert any("secret" in r for r in rep.rejected)  # type: ignore[attr-defined]
+
+
+def test_results_without_traces_do_not_link_to_missing_runs(
+    client: TestClient, results: Path, tmp_path: Path
+) -> None:
+    # traces.jsonl is large and not committed, so a cloned results folder often has only
+    # runs.jsonl. Its cases must say "not imported" rather than link to a run that is absent.
+    records = [json.loads(x) for x in (results / "runs.jsonl").read_text().splitlines() if x]
+    for r in records:  # a separate source whose runs were never recorded in this database
+        r["run_key"] += "-notrace"
+        r["model_spec"] = "stub-without-traces"
+        if r.get("execution_id"):
+            r["execution_id"] = str(uuid.uuid4())
+    (tmp_path / "runs.jsonl").write_text("\n".join(json.dumps(r) for r in records) + "\n")
+    rep = _import(tmp_path)
+    assert rep.imported == len(records) and rep.traces_ingested == 0  # type: ignore[attr-defined]
+    src = next(
+        s["source"]
+        for s in client.get("/api/v1/evaluations").json()
+        if s["model_spec"] == "stub-without-traces"
+    )
+    summary = client.get(f"/api/v1/evaluations/{src}").json()
+    assert summary["case_rows"]
+    for row in summary["case_rows"]:
+        for arm in ("baseline", "repair"):
+            if row.get(arm):
+                assert row[arm]["execution_id"] is None
