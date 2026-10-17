@@ -14,12 +14,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Sequence
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-DETECTOR_VERSION = "1.1"
+DETECTOR_VERSION = "1.2"
 RETRY_LOOP_THRESHOLD = 4  # identical failing calls in a row (default retry budget is 3)
+STALE_AFTER_DAYS = 30  # a retrieved snapshot older than this, once acted on, is flagged
 
 Category = Literal[
     "tool_schema_mismatch",
@@ -28,6 +30,7 @@ Category = Literal[
     "budget_exhausted",
     "state_identity_mismatch",
     "repeated_action",
+    "stale_data",
 ]
 CATEGORIES: tuple[Category, ...] = (
     "tool_schema_mismatch",
@@ -36,6 +39,7 @@ CATEGORIES: tuple[Category, ...] = (
     "budget_exhausted",
     "state_identity_mismatch",
     "repeated_action",
+    "stale_data",
 )
 # Tools whose successful call leaves a lasting effect; doing one twice is a bug.
 SIDE_EFFECT_TOOLS = ("draft_response", "submit_resolution")
@@ -241,6 +245,58 @@ def detect_state_identity_mismatch(events: Sequence[Event]) -> list[Finding]:
     return findings
 
 
+def _snapshot_age_days(attrs: dict[str, Any]) -> float | None:
+    as_of, checked = attrs.get("data_as_of"), attrs.get("data_checked_at")
+    if not isinstance(as_of, str) or not isinstance(checked, str):
+        return None
+    try:
+        a = datetime.fromisoformat(as_of.replace("Z", "+00:00"))
+        c = datetime.fromisoformat(checked.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return (c - a).total_seconds() / 86400.0
+
+
+def detect_stale_data(events: Sequence[Event]) -> list[Finding]:
+    """The agent read a data snapshot older than the freshness window and then closed the
+    ticket on it. The snapshot date is recorded as metadata (never the data itself)."""
+    ordered = _ordered(events)
+    acted = any(
+        e["event_type"] == "tool_call_end"
+        and e.get("tool_name") == "submit_resolution"
+        and e.get("status") == "ok"
+        for e in ordered
+    )
+    if not acted:
+        return []
+    findings = []
+    for e in ordered:
+        if e["event_type"] != "tool_call_end" or e.get("status") != "ok":
+            continue
+        age = _snapshot_age_days(e.get("attributes") or {})
+        if age is None or age <= STALE_AFTER_DAYS:
+            continue
+        ids, spans = _ids([e])
+        days = int(round(age))
+        findings.append(
+            Finding(
+                category="stale_data",
+                severity="high",
+                title=f"{e.get('tool_name')} returned data {days} days old",
+                explanation=(
+                    f"{e.get('tool_name')} (event #{e['sequence_no']}) answered from a "
+                    f"snapshot {days} days old, past the {STALE_AFTER_DAYS}-day freshness "
+                    "window, and the agent closed the ticket on it. The live value may differ."
+                ),
+                evidence_event_ids=ids,
+                evidence_span_ids=spans,
+                detector="stale_data",
+                caveats=["snapshot age from recorded metadata; retrieved values are not stored"],
+            )
+        )
+    return findings
+
+
 def detect_repeated_action(events: Sequence[Event]) -> list[Finding]:
     """A tool with a lasting effect (writing the reply, closing the ticket) succeeded more
     than once: the agent did not notice the work was already done."""
@@ -277,6 +333,7 @@ DETECTORS: tuple[Callable[[Sequence[Event]], list[Finding]], ...] = (
     detect_budget_exhausted,
     detect_state_identity_mismatch,
     detect_repeated_action,
+    detect_stale_data,
 )
 
 

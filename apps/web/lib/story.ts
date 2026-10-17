@@ -99,6 +99,7 @@ function joinList(items: string[]): string {
 // ------------------------------------------------------------------ root cause
 const PRIORITY = [
   "state_identity_mismatch",
+  "stale_data",
   "tool_schema_mismatch",
   "tool_timeout",
   "repeated_action",
@@ -113,6 +114,7 @@ const SYMPTOM: Record<string, string> = {
   budget_exhausted: "ran out of steps",
   state_identity_mismatch: "order mix-up",
   repeated_action: "did a finished step again",
+  stale_data: "acted on out-of-date data",
 };
 
 export function symptomLabel(category: string): string {
@@ -139,6 +141,7 @@ function evidenceStep(f: Finding, steps: ToolStep[]): ToolStep | null {
   if (f.category === "tool_timeout") return steps.find((s) => s.errorCode === "TIMEOUT") ?? null;
   if (f.category === "retry_loop") return steps.find((s) => !s.ok) ?? null;
   if (f.category === "state_identity_mismatch") return steps.find((s) => s.tool === "submit_resolution") ?? null;
+  if (f.category === "stale_data") return steps.find((s) => s.tool === "lookup_inventory" && s.ok) ?? null;
   return null;
 }
 
@@ -194,6 +197,10 @@ export function rootCause(
     case "state_identity_mismatch":
       title = "Closed the ticket on the wrong order";
       detail = "The agent looked up one order but recorded the decision against a different one.";
+      break;
+    case "stale_data":
+      title = "Acted on out-of-date data";
+      detail = "A tool answered from an old snapshot, and the agent made its decision on it. The live value may be different.";
       break;
     case "repeated_action":
       title = "Didn't stop when the work was done";

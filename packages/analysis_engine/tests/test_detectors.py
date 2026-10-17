@@ -48,7 +48,7 @@ def test_flagship_failure_findings_cite_real_events() -> None:
     by_id = {e["event_id"]: e for e in events}
     for f in findings:
         assert f.evidence_event_ids and all(i in by_id for i in f.evidence_event_ids)
-        assert f.detector_version == "1.1" and f.kind == "verified"
+        assert f.detector_version == "1.2" and f.kind == "verified"
     schema = next(f for f in findings if f.category == "tool_schema_mismatch")
     assert len(schema.evidence_event_ids) == 7
     assert all(
@@ -133,3 +133,33 @@ def test_repeated_action_flags_a_second_side_effect() -> None:
     # A failed repeat left no effect and is not counted.
     failed = [*once, tool_end(3, "submit_resolution", "error", error_code="INVALID_ARGUMENT")]
     assert "repeated_action" not in cats(failed)
+
+
+def _inv_end(seq: int, as_of: str, checked: str = "2026-10-15T00:00:00Z") -> dict[str, Any]:
+    e = tool_end(seq, "lookup_inventory", "ok")
+    e["attributes"] = {"data_as_of": as_of, "data_checked_at": checked}
+    return e
+
+
+def test_stale_data_flags_an_old_snapshot_the_agent_acted_on() -> None:
+    acted = tool_end(2, "submit_resolution", "ok")
+    # Fresh snapshot (14 days): not flagged, even though a resolution followed.
+    assert "stale_data" not in cats([_inv_end(1, "2026-10-01T09:00:00Z"), acted])
+    # Stale snapshot (64 days): flagged.
+    stale = [_inv_end(1, "2026-08-12T09:00:00Z"), acted]
+    found = [f for f in analyze(stale) if f.category == "stale_data"]
+    assert len(found) == 1 and "64 days old" in found[0].title
+    assert found[0].evidence_event_ids == [stale[0]["event_id"]]
+    # Stale data read but never acted on (no resolution): not flagged.
+    assert "stale_data" not in cats([_inv_end(1, "2026-08-12T09:00:00Z")])
+
+
+def test_real_stale_retrieval_run_is_flagged_end_to_end() -> None:
+    events = recorded("bm1-stale-retrieval-01")
+    assert cats(events) == {"stale_data"}
+    inv = next(
+        e
+        for e in events
+        if e.get("tool_name") == "lookup_inventory" and e["event_type"] == "tool_call_end"
+    )
+    assert inv["attributes"]["data_as_of"] and inv["attributes"]["data_checked_at"]

@@ -52,7 +52,7 @@ FAMILIES: dict[str, tuple[int, str, list[str]]] = {
         6,
         "An outdated cached stock record says 'out of stock', so the agent refunds "
         "instead of exchanging.",
-        [],  # no detector covers stale data yet: measured as an uncovered failure
+        ["stale_data"],
     ),
     "wrong_identity": (
         6,

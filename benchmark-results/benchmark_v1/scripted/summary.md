@@ -6,12 +6,12 @@ Agent: `stub-planner-v1` (stub). Agent harness 0.3.1. Seed 7.
 | Metric | All cases | Dev | Held-out |
 |---|---|---|---|
 | Baseline success | 38% (20/52; 95% CI 26-52%) | 39% (14/36; 95% CI 25-55%) | 38% (6/16; 95% CI 18-61%) |
-| Recovery with FlightPath's change | 81% (26/32; 95% CI 65-91%) | 82% (18/22; 95% CI 61-93%) | 80% (8/10; 95% CI 49-94%) |
+| Recovery with FlightPath's change | 100% (32/32; 95% CI 89-100%) | 100% (22/22; 95% CI 85-100%) | 100% (10/10; 95% CI 72-100%) |
 | Recovery with a random valid change | 22% (35/160; 95% CI 16-29%) | 20% (22/110; 95% CI 14-28%) | 26% (13/50; 95% CI 16-40%) |
 | Recovery when restarting with no change | 0% (0/32; 95% CI 0-11%) | 0% (0/22; 95% CI 0-15%) | 0% (0/10; 95% CI 0-28%) |
-| Repair coverage (a change was proposed) | 81% (26/32; 95% CI 65-91%) | 82% (18/22; 95% CI 61-93%) | 80% (8/10; 95% CI 49-94%) |
+| Repair coverage (a change was proposed) | 100% (32/32; 95% CI 89-100%) | 100% (22/22; 95% CI 85-100%) | 100% (10/10; 95% CI 72-100%) |
 | Replay validity (no-change replay reproduces) | 100% (52/52; 95% CI 93-100%) | 100% (36/36; 95% CI 90-100%) | 100% (16/16; 95% CI 81-100%) |
-| False benefit (recovered without the change) | 0% (0/26; 95% CI 0-13%) | 0% (0/18; 95% CI 0-18%) | 0% (0/8; 95% CI 0-32%) |
+| False benefit (recovered without the change) | 0% (0/32; 95% CI 0-11%) | 0% (0/22; 95% CI 0-15%) | 0% (0/10; 95% CI 0-28%) |
 
 ## By family
 
@@ -23,7 +23,7 @@ Agent: `stub-planner-v1` (stub). Agent harness 0.3.1. Seed 7.
 | invalid_argument | 8 | 0% (0/8; 95% CI 0-32%) | 100% (8/8; 95% CI 68-100%) | 32% (13/40; 95% CI 20-48%) |
 | persistent_timeout | 6 | 0% (0/6; 95% CI 0-39%) | 100% (6/6; 95% CI 61-100%) | 40% (12/30; 95% CI 25-58%) |
 | repeat_loop | 6 | 0% (0/6; 95% CI 0-39%) | 100% (6/6; 95% CI 61-100%) | 17% (5/30; 95% CI 7-34%) |
-| stale_retrieval | 6 | 0% (0/6; 95% CI 0-39%) | 0% (0/6; 95% CI 0-39%) | 17% (5/30; 95% CI 7-34%) |
+| stale_retrieval | 6 | 0% (0/6; 95% CI 0-39%) | 100% (6/6; 95% CI 61-100%) | 17% (5/30; 95% CI 7-34%) |
 | wrong_identity | 6 | 0% (0/6; 95% CI 0-39%) | 100% (6/6; 95% CI 61-100%) | 0% (0/30; 95% CI 0-11%) |
 
 ## Detectors (baseline runs, against case labels)
@@ -36,20 +36,21 @@ Agent: `stub-planner-v1` (stub). Agent harness 0.3.1. Seed 7.
 | budget_exhausted | 14 | 0 | 0 | 100% (14/14; 95% CI 78-100%) | 100% (14/14; 95% CI 78-100%) |
 | state_identity_mismatch | 6 | 0 | 0 | 100% (6/6; 95% CI 61-100%) | 100% (6/6; 95% CI 61-100%) |
 | repeated_action | 0 | 0 | 0 | n/a (0 runs) | n/a (0 runs) |
+| stale_data | 6 | 0 | 0 | 100% (6/6; 95% CI 61-100%) | 100% (6/6; 95% CI 61-100%) |
 
-Failed runs where at least one detector fired: 81% (26/32; 95% CI 65-91%).
+Failed runs where at least one detector fired: 100% (32/32; 95% CI 89-100%).
 Passed runs where a detector fired anyway: 0% (0/20; 95% CI 0-16%).
 
-Failed runs by most likely cause: tool_schema_mismatch 14, none 6, state_identity_mismatch 6, tool_timeout 6.
+Failed runs by most likely cause: tool_schema_mismatch 14, stale_data 6, state_identity_mismatch 6, tool_timeout 6.
 
 ## Latency per run
 
 | Arm | Median | p95 | Mean tokens |
 |---|---|---|---|
-| baseline | 9.02 ms | 13.31 ms | 0.0 |
-| no_change | 7.19 ms | 10.92 ms | 0.0 |
-| repair | 7.19 ms | 8.24 ms | 0.0 |
-| random | 6.83 ms | 9.26 ms | 0.0 |
+| baseline | 8.71 ms | 15.95 ms | 0.0 |
+| no_change | 7.22 ms | 14.5 ms | 0.0 |
+| repair | 7.4 ms | 11.43 ms | 0.0 |
+| random | 7.02 ms | 11.83 ms | 0.0 |
 
 ## How to read this
 

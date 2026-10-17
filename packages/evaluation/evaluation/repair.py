@@ -14,6 +14,7 @@ import random
 from dataclasses import dataclass
 from typing import Any
 
+from agent_harness.freshness import is_stale
 from agent_harness.interventions import (
     Intervention,
     ReplaceToolArguments,
@@ -65,6 +66,22 @@ def plan_repair(run: RunResult, checkpoints: Checkpoints) -> Change | None:
         idx = int(step["call_index"])
         if idx not in checkpoints:
             continue
+        if step["ok"] and step["tool"] == "lookup_inventory":
+            as_of = (step.get("result") or {}).get("as_of")
+            world = _world(checkpoints, idx)
+            fresh = world.get("inventory", {}).get(step["args"].get("sku"))
+            if (
+                isinstance(as_of, str)
+                and is_stale(as_of)
+                and isinstance(fresh, dict)
+                and fresh.get("as_of") != as_of
+            ):
+                fix: Intervention = ReplaceToolResult(idx, {"sku": step["args"]["sku"], **fresh})
+                return Change(
+                    validate_intervention(fix, step["tool"]),
+                    step["tool"],
+                    "use the current stock record, not the cached one",
+                )
         if not step["ok"]:
             recovered = any(s["ok"] and s["tool"] == step["tool"] for s in history[i + 1 :])
             if recovered:

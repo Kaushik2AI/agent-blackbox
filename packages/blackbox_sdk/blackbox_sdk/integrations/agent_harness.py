@@ -24,6 +24,7 @@ from typing import Any, Protocol
 
 from agent_harness import __version__ as harness_version
 from agent_harness.fixtures import load_fixture
+from agent_harness.freshness import REFERENCE_NOW
 from agent_harness.graph import EventSink
 from agent_harness.interventions import Intervention
 from agent_harness.model import Model, StubModel
@@ -277,6 +278,13 @@ class HarnessTracer:
         if ok:
             payload["output"] = rec.capture(data["result"])
             payload["output_identity"] = rec.identity(data["result"])
+            # Freshness of a retrieved snapshot is metadata, not a captured value: the
+            # snapshot date and the logical "now" it was read at, so a detector can tell
+            # the agent acted on stale data without the data itself being stored.
+            result = data["result"]
+            if isinstance(result, dict) and result.get("as_of"):
+                attributes["data_as_of"] = result["as_of"]
+                attributes["data_checked_at"] = REFERENCE_NOW
         else:
             payload["error_code"] = data["error_code"]
             payload["error_message"] = data.get("error")

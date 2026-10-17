@@ -56,6 +56,7 @@ def _tokens(rows: list[Record]) -> dict[str, Any]:
 # Same order the app uses to pick the "most likely cause" among several findings.
 CAUSE_PRIORITY = (
     "state_identity_mismatch",
+    "stale_data",
     "tool_schema_mismatch",
     "tool_timeout",
     "repeated_action",

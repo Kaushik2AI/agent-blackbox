@@ -176,11 +176,13 @@ def test_passing_case_runs_only_baseline_and_no_change() -> None:
     assert [r["arm"] for r in rows] == ["baseline", "no_change"]
 
 
-def test_stale_retrieval_is_an_honest_gap() -> None:
+def test_stale_retrieval_is_detected_and_repaired() -> None:
     rows = CaseRunner(RunConfig(random_draws=1), None).run_case(_cases("stale_retrieval")[0])
     by = {r["arm"]: r for r in rows}
-    assert by["baseline"]["passed"] is False and by["baseline"]["findings"] == []
-    assert by["repair"]["skipped"] == "no repair rule"
+    assert by["baseline"]["passed"] is False and by["baseline"]["findings"] == ["stale_data"]
+    assert by["repair"]["intervention"]["type"] == "replace_tool_result"
+    assert by["repair"]["passed"] is True
+    assert by["no_change"]["passed"] is False
 
 
 def test_benchmark_is_reproducible_and_resumable(tmp_path: Path) -> None:

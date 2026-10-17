@@ -208,11 +208,11 @@
         "rate": 0.1667
       },
       "repair_recovery": {
-        "ci_high": 0.3903,
-        "ci_low": 0.0,
-        "k": 0,
+        "ci_high": 1.0,
+        "ci_low": 0.6097,
+        "k": 6,
         "n": 6,
-        "rate": 0.0
+        "rate": 1.0
       },
       "replay_validity": {
         "ci_high": 1.0,
@@ -272,14 +272,14 @@
       "baseline_runs": 52,
       "detectors": {
         "coverage_on_failed": {
-          "ci_high": 0.9111,
-          "ci_low": 0.6469,
-          "k": 26,
+          "ci_high": 1.0,
+          "ci_low": 0.8928,
+          "k": 32,
           "n": 32,
-          "rate": 0.8125
+          "rate": 1.0
         },
         "failure_causes": {
-          "none": 6,
+          "stale_data": 6,
           "state_identity_mismatch": 6,
           "tool_schema_mismatch": 14,
           "tool_timeout": 6
@@ -349,6 +349,25 @@
             },
             "tp": 14
           },
+          "stale_data": {
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "ci_high": 1.0,
+              "ci_low": 0.6097,
+              "k": 6,
+              "n": 6,
+              "rate": 1.0
+            },
+            "recall": {
+              "ci_high": 1.0,
+              "ci_low": 0.6097,
+              "k": 6,
+              "n": 6,
+              "rate": 1.0
+            },
+            "tp": 6
+          },
           "state_identity_mismatch": {
             "fn": 0,
             "fp": 0,
@@ -410,28 +429,28 @@
       },
       "failed_runs": 32,
       "false_benefit": {
-        "ci_high": 0.1287,
+        "ci_high": 0.1072,
         "ci_low": 0.0,
         "k": 0,
-        "n": 26,
+        "n": 32,
         "rate": 0.0
       },
       "latency": {
         "baseline": {
-          "median_ms": 9.02,
-          "p95_ms": 13.31
+          "median_ms": 8.71,
+          "p95_ms": 15.95
         },
         "no_change": {
-          "median_ms": 7.19,
-          "p95_ms": 10.92
+          "median_ms": 7.22,
+          "p95_ms": 14.5
         },
         "random": {
-          "median_ms": 6.83,
-          "p95_ms": 9.26
+          "median_ms": 7.02,
+          "p95_ms": 11.83
         },
         "repair": {
-          "median_ms": 7.19,
-          "p95_ms": 8.24
+          "median_ms": 7.4,
+          "p95_ms": 11.43
         }
       },
       "no_change_recovery": {
@@ -456,24 +475,24 @@
         "rate": 0.2188
       },
       "repair_coverage": {
-        "ci_high": 0.9111,
-        "ci_low": 0.6469,
-        "k": 26,
+        "ci_high": 1.0,
+        "ci_low": 0.8928,
+        "k": 32,
         "n": 32,
-        "rate": 0.8125
+        "rate": 1.0
       },
       "repair_recovery": {
-        "ci_high": 0.9111,
-        "ci_low": 0.6469,
-        "k": 26,
+        "ci_high": 1.0,
+        "ci_low": 0.8928,
+        "k": 32,
         "n": 32,
-        "rate": 0.8125
+        "rate": 1.0
       },
       "repair_recovery_when_attempted": {
         "ci_high": 1.0,
-        "ci_low": 0.8713,
-        "k": 26,
-        "n": 26,
+        "ci_low": 0.8928,
+        "k": 32,
+        "n": 32,
         "rate": 1.0
       },
       "replay_validity": {
@@ -515,7 +534,7 @@
         "repair": {
           "cost_usd": null,
           "mean_tokens": 0.0,
-          "runs": 26,
+          "runs": 32,
           "tokens_in": 0,
           "tokens_out": 0
         }
@@ -525,14 +544,14 @@
       "baseline_runs": 36,
       "detectors": {
         "coverage_on_failed": {
-          "ci_high": 0.9269,
-          "ci_low": 0.6148,
-          "k": 18,
+          "ci_high": 1.0,
+          "ci_low": 0.8513,
+          "k": 22,
           "n": 22,
-          "rate": 0.8182
+          "rate": 1.0
         },
         "failure_causes": {
-          "none": 4,
+          "stale_data": 4,
           "state_identity_mismatch": 4,
           "tool_schema_mismatch": 10,
           "tool_timeout": 4
@@ -602,6 +621,25 @@
             },
             "tp": 10
           },
+          "stale_data": {
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "ci_high": 1.0,
+              "ci_low": 0.5101,
+              "k": 4,
+              "n": 4,
+              "rate": 1.0
+            },
+            "recall": {
+              "ci_high": 1.0,
+              "ci_low": 0.5101,
+              "k": 4,
+              "n": 4,
+              "rate": 1.0
+            },
+            "tp": 4
+          },
           "state_identity_mismatch": {
             "fn": 0,
             "fp": 0,
@@ -663,28 +701,28 @@
       },
       "failed_runs": 22,
       "false_benefit": {
-        "ci_high": 0.1759,
+        "ci_high": 0.1487,
         "ci_low": 0.0,
         "k": 0,
-        "n": 18,
+        "n": 22,
         "rate": 0.0
       },
       "latency": {
         "baseline": {
-          "median_ms": 8.91,
-          "p95_ms": 11.93
+          "median_ms": 9.03,
+          "p95_ms": 15.78
         },
         "no_change": {
-          "median_ms": 7.17,
-          "p95_ms": 10.77
+          "median_ms": 7.22,
+          "p95_ms": 15.45
         },
         "random": {
-          "median_ms": 7.02,
-          "p95_ms": 9.2
+          "median_ms": 7.07,
+          "p95_ms": 12.01
         },
         "repair": {
-          "median_ms": 7.05,
-          "p95_ms": 8.19
+          "median_ms": 7.56,
+          "p95_ms": 11.74
         }
       },
       "no_change_recovery": {
@@ -709,24 +747,24 @@
         "rate": 0.2
       },
       "repair_coverage": {
-        "ci_high": 0.9269,
-        "ci_low": 0.6148,
-        "k": 18,
+        "ci_high": 1.0,
+        "ci_low": 0.8513,
+        "k": 22,
         "n": 22,
-        "rate": 0.8182
+        "rate": 1.0
       },
       "repair_recovery": {
-        "ci_high": 0.9269,
-        "ci_low": 0.6148,
-        "k": 18,
+        "ci_high": 1.0,
+        "ci_low": 0.8513,
+        "k": 22,
         "n": 22,
-        "rate": 0.8182
+        "rate": 1.0
       },
       "repair_recovery_when_attempted": {
         "ci_high": 1.0,
-        "ci_low": 0.8241,
-        "k": 18,
-        "n": 18,
+        "ci_low": 0.8513,
+        "k": 22,
+        "n": 22,
         "rate": 1.0
       },
       "replay_validity": {
@@ -768,7 +806,7 @@
         "repair": {
           "cost_usd": null,
           "mean_tokens": 0.0,
-          "runs": 18,
+          "runs": 22,
           "tokens_in": 0,
           "tokens_out": 0
         }
@@ -778,14 +816,14 @@
       "baseline_runs": 16,
       "detectors": {
         "coverage_on_failed": {
-          "ci_high": 0.9433,
-          "ci_low": 0.4902,
-          "k": 8,
+          "ci_high": 1.0,
+          "ci_low": 0.7225,
+          "k": 10,
           "n": 10,
-          "rate": 0.8
+          "rate": 1.0
         },
         "failure_causes": {
-          "none": 2,
+          "stale_data": 2,
           "state_identity_mismatch": 2,
           "tool_schema_mismatch": 4,
           "tool_timeout": 2
@@ -855,6 +893,25 @@
             },
             "tp": 4
           },
+          "stale_data": {
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "ci_high": 1.0,
+              "ci_low": 0.3424,
+              "k": 2,
+              "n": 2,
+              "rate": 1.0
+            },
+            "recall": {
+              "ci_high": 1.0,
+              "ci_low": 0.3424,
+              "k": 2,
+              "n": 2,
+              "rate": 1.0
+            },
+            "tp": 2
+          },
           "state_identity_mismatch": {
             "fn": 0,
             "fp": 0,
@@ -916,28 +973,28 @@
       },
       "failed_runs": 10,
       "false_benefit": {
-        "ci_high": 0.3244,
+        "ci_high": 0.2775,
         "ci_low": 0.0,
         "k": 0,
-        "n": 8,
+        "n": 10,
         "rate": 0.0
       },
       "latency": {
         "baseline": {
-          "median_ms": 9.37,
-          "p95_ms": 15.31
+          "median_ms": 8.68,
+          "p95_ms": 13.25
         },
         "no_change": {
-          "median_ms": 7.21,
-          "p95_ms": 12.59
+          "median_ms": 7.19,
+          "p95_ms": 11.52
         },
         "random": {
-          "median_ms": 6.22,
-          "p95_ms": 9.24
+          "median_ms": 6.25,
+          "p95_ms": 10.25
         },
         "repair": {
-          "median_ms": 7.32,
-          "p95_ms": 11.82
+          "median_ms": 7.28,
+          "p95_ms": 9.99
         }
       },
       "no_change_recovery": {
@@ -962,24 +1019,24 @@
         "rate": 0.26
       },
       "repair_coverage": {
-        "ci_high": 0.9433,
-        "ci_low": 0.4902,
-        "k": 8,
+        "ci_high": 1.0,
+        "ci_low": 0.7225,
+        "k": 10,
         "n": 10,
-        "rate": 0.8
+        "rate": 1.0
       },
       "repair_recovery": {
-        "ci_high": 0.9433,
-        "ci_low": 0.4902,
-        "k": 8,
+        "ci_high": 1.0,
+        "ci_low": 0.7225,
+        "k": 10,
         "n": 10,
-        "rate": 0.8
+        "rate": 1.0
       },
       "repair_recovery_when_attempted": {
         "ci_high": 1.0,
-        "ci_low": 0.6756,
-        "k": 8,
-        "n": 8,
+        "ci_low": 0.7225,
+        "k": 10,
+        "n": 10,
         "rate": 1.0
       },
       "replay_validity": {
@@ -1021,7 +1078,7 @@
         "repair": {
           "cost_usd": null,
           "mean_tokens": 0.0,
-          "runs": 8,
+          "runs": 10,
           "tokens_in": 0,
           "tokens_out": 0
         }

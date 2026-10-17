@@ -89,7 +89,7 @@ def test_findings_are_stored_at_ingest_and_cite_real_events(client: TestClient) 
     spans = {n["id"] for n in client.get(f"/api/v1/executions/{eid}/graph").json()["nodes"]}
     for f in body["findings"]:
         assert set(f["evidence_event_ids"]) <= events and set(f["evidence_span_ids"]) <= spans
-        assert f["kind"] == "verified" and f["detector_version"] == "1.1"
+        assert f["kind"] == "verified" and f["detector_version"] == "1.2"
 
 
 def test_healthy_run_has_no_findings_and_identity_bug_is_caught(client: TestClient) -> None:

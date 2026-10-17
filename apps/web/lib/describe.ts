@@ -111,6 +111,7 @@ const FINDING_TITLES: Record<string, string> = {
   budget_exhausted: "The agent ran out of steps",
   state_identity_mismatch: "The agent mixed up which order it was handling",
   repeated_action: "The agent did a finished step again",
+  stale_data: "The agent acted on out-of-date data",
 };
 
 const FINDING_PLAIN: Record<string, string> = {
@@ -120,6 +121,7 @@ const FINDING_PLAIN: Record<string, string> = {
   budget_exhausted: "Every agent gets a fixed number of steps. This one used them all before finishing.",
   state_identity_mismatch: "It looked up one order but closed the ticket for a different one.",
   repeated_action: "It wrote the reply or closed the ticket more than once instead of stopping.",
+  stale_data: "A tool returned an old cached record, and the agent decided based on it instead of the live value.",
 };
 
 /** One short sentence anyone can follow; the detector's own wording goes under "details". */
@@ -154,6 +156,8 @@ export function verdict(input: {
   let line = "The ticket wasn't closed correctly.";
   if (cats.has("state_identity_mismatch")) {
     line = "The agent closed the ticket on a different order than the one it looked up.";
+  } else if (cats.has("stale_data")) {
+    line = "The agent decided based on an out-of-date cached record, not the live value.";
   } else if (cats.has("repeated_action")) {
     line = "The agent did the right steps but didn't stop, and repeated work that was already done.";
   } else if (cats.has("retry_loop") && cats.has("tool_schema_mismatch")) {

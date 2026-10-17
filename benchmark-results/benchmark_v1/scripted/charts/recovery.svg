@@ -14,11 +14,11 @@
 <line x1="610.0" y1="64" x2="610.0" y2="214" stroke="#e0e3ea" stroke-width="1"/>
 <text x="610.0" y="232" font-size="12" fill="#737b8e" text-anchor="middle">100%</text>
 <text x="236" y="96.0" font-size="13.5" fill="#151a24" text-anchor="end">FlightPath&#x27;s suggested change</text>
-<rect x="250" y="83.0" width="292.5" height="18" rx="4" fill="#2160c4"/>
-<line x1="482.9" y1="92.0" x2="578.0" y2="92.0" stroke="#151a24" stroke-width="1.5"/>
-<line x1="482.9" y1="86.0" x2="482.9" y2="98.0" stroke="#151a24" stroke-width="1.5"/>
-<line x1="578.0" y1="86.0" x2="578.0" y2="98.0" stroke="#151a24" stroke-width="1.5"/>
-<text x="588.0" y="96.0" font-size="13.5" fill="#151a24"><tspan font-weight="600">81%</tspan><tspan fill="#485063"> 26/32</tspan></text>
+<rect x="250" y="83.0" width="360.0" height="18" rx="4" fill="#2160c4"/>
+<line x1="571.4" y1="92.0" x2="610.0" y2="92.0" stroke="#151a24" stroke-width="1.5"/>
+<line x1="571.4" y1="86.0" x2="571.4" y2="98.0" stroke="#151a24" stroke-width="1.5"/>
+<line x1="610.0" y1="86.0" x2="610.0" y2="98.0" stroke="#151a24" stroke-width="1.5"/>
+<text x="620.0" y="96.0" font-size="13.5" fill="#151a24"><tspan font-weight="600">100%</tspan><tspan fill="#485063"> 32/32</tspan></text>
 <text x="236" y="140.0" font-size="13.5" fill="#151a24" text-anchor="end">Random valid change</text>
 <rect x="250" y="127.0" width="78.8" height="18" rx="4" fill="#2160c4"/>
 <line x1="308.2" y1="136.0" x2="354.0" y2="136.0" stroke="#151a24" stroke-width="1.5"/>

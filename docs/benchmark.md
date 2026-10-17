@@ -19,8 +19,14 @@ products with their own codes and stock (three are decoys), and the store polici
 | invalid_argument | 8 | Sends the product name instead of the code, repeats it | wrong input, loop, out of steps |
 | repeat_loop | 6 | Writes the order id in lower case, repeats it | wrong input, loop, out of steps |
 | persistent_timeout | 6 | Stock system never answers; gives up | timeout |
-| stale_retrieval | 6 | A month-old cached record says "out of stock"; refunds instead of exchanging | none (no detector exists) |
+| stale_retrieval | 6 | A month-old cached record says "out of stock"; refunds instead of exchanging | stale data |
 | wrong_identity | 6 | Looks up one order, closes the ticket on another customer's | order mix-up |
+
+A tool result can carry an `as_of` snapshot timestamp. The recorder emits it, with the
+logical "now" the agent read it at, as event metadata (never the retrieved values), so the
+stale-data detector can tell the agent acted on an out-of-date snapshot. The freshness
+window is 30 days; the fixtures' fresh snapshots are dated 2026-10-01 and the stale one
+2026-08-12, so the split is deterministic and independent of wall-clock time.
 
 The last two cases of each family (16) are the **held-out** split. Nothing was tuned on
 them: the repair rules and detectors predate the benchmark and were written against the
