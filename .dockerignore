@@ -1,0 +1,22 @@
+# Keep local builds small and secret-free (the Space only receives tracked files anyway).
+.git
+.env
+.env.*
+.venv
+.cache
+.local-data
+**/node_modules
+**/.next
+**/out
+**/public/snapshot
+**/__pycache__
+**/*.egg-info
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+**/test-results
+**/*.tsbuildinfo
+**/traces.jsonl
+artifacts
+docs/private
+docs/images

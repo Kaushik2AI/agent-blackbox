@@ -1,5 +1,6 @@
 "use client";
 
+import { SHOWCASE } from "@/lib/showcase";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import {
   type Brain,
@@ -163,7 +164,7 @@ function Demo({ cfg }: { cfg: LiveConfig }) {
     ready: cfg.llm_label,
     loading: "Warming up, about a minute…",
     offline: "AI server is not running",
-    none: "Not set up on this server",
+    none: SHOWCASE ? "Runs when you host FlightPath yourself" : "Not set up on this server",
   }[cfg.llm_state];
 
   return (

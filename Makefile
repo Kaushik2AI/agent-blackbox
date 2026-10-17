@@ -129,6 +129,15 @@ test-e2e: ## Browser tests (run while `make dev` is up): seeds real runs, then P
 	cd $(API) && python -m app.eval_import ../../artifacts/e2e-benchmark >/dev/null
 	cd $(WEB) && E2E_BASE_URL=http://127.0.0.1:$${WEB_PORT:-3000}/ npx playwright test
 
+# ---------------------------------------------------------------- static showcase (GitHub Pages)
+PAGES_BASE_PATH ?= /agent-blackbox
+.PHONY: showcase test-showcase
+showcase: ## Read-only static showcase from the RUNNING stack (make dev): snapshot + export to apps/web/out
+	python infra/showcase/snapshot.py --api $${API_INTERNAL_URL:-http://127.0.0.1:8000} --out apps/web/public/snapshot
+	cd $(WEB) && NEXT_PUBLIC_SHOWCASE=1 PAGES_BASE_PATH=$(PAGES_BASE_PATH) npx next build --webpack
+test-showcase: ## Serve apps/web/out like GitHub Pages and run the showcase browser tests
+	PAGES_BASE_PATH=$(PAGES_BASE_PATH) bash infra/showcase/test.sh
+
 # ---------------------------------------------------------------- benchmark (M8/M9)
 BENCH_OUT ?= benchmark-results/benchmark_v1/scripted
 .PHONY: benchmark benchmark-report benchmark-import benchmark-dataset gpu-setup gpu-check gpu-benchmark

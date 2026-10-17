@@ -2,6 +2,9 @@
 
 **The flight recorder for AI agents.**
 
+**[Try the live showcase →](https://kaushik2ai.github.io/agent-blackbox/)** Real recorded runs, diagnoses and
+one-click fixes in your browser, nothing to install. Run it yourself for Live AI and your own re-runs.
+
 When an AI agent fails, logs show you an error or a wrong final answer. They don't show you
 *the moment it went wrong*, *why*, or *whether a fix would actually work*. FlightPath
 records every step an agent takes, points to the most likely root cause in plain words,
@@ -138,6 +141,18 @@ make install && make compose-up && make dev
 </details>
 
 <details>
+<summary>Everything in one Docker container</summary>
+
+```bash
+docker build -f infra/space/Dockerfile -t flightpath .
+docker run --rm -p 7860:7860 flightpath    # open http://127.0.0.1:7860
+```
+
+Postgres, Redis, the API, the replay worker, the web app and a small CPU Qwen model for
+Live AI, in public-demo mode. See [deploying](docs/deploy.md).
+</details>
+
+<details>
 <summary>Live AI: a real Qwen model on your machine</summary>
 
 ```bash
@@ -221,6 +236,8 @@ agent can); recording and diagnosis work for any agent.
 | `packages/evaluation` | Benchmark cases, the four arms, metrics with intervals, reports, GPU model adapter |
 | `infra/local` | No-Docker setup and services, local model server |
 | `infra/batch` | GPU job scripts (Grid Engine, Slurm) |
+| `infra/space` | One-container Docker image for the full app |
+| `infra/showcase` | Snapshot script and checks for the static GitHub Pages showcase |
 | `benchmark-results` | Committed benchmark output (runs, summary, charts) |
 | `docs` | Architecture, replay contract, data model, threat model, design, benchmark method |
 
@@ -231,8 +248,8 @@ make check       # ruff + mypy --strict + tsc, all unit/integration tests, produ
 make test-e2e    # with `make dev` running: 7 browser tests (Playwright)
 ```
 
-Tests: 53 agent harness, 17 SDK, 13 detector, 68 benchmark, 88 API (against real
-Postgres and Redis), 22 web unit, 7 browser. Highlights: the source run is byte-for-byte
+Tests: 54 agent harness, 17 SDK, 12 detector, 67 benchmark, 89 API (against real
+Postgres and Redis), 26 web unit, 10 browser (7 on the full app, 3 on the static showcase). Highlights: the source run is byte-for-byte
 unchanged after a replay; tampered checkpoints are refused; network access during a replay
 fails the job; the benchmark rebuilds identical results from scratch and resumes without
 duplicates; metric denominators are tested against hand-computed values.
@@ -260,7 +277,8 @@ duplicates; metric denominators are tested against hand-computed values.
 | M8 | Benchmark: 52 cases, 4 arms, intervals, held-out split, artifacts, dashboard | done |
 | M9 | GPU evaluation: Qwen2.5-3B on a GPU, 156 runs, results above | done |
 | M10 | Stale-data detection and repair: freshness metadata, detector, one-step fix | done |
-| M11 | Authentication, hardening, public deployment | next |
+| M11 | Deployment: free static showcase on GitHub Pages, one-container Docker image | done |
+| M12 | User authentication and hardening for a public full app | next |
 
 ## Docs
 
@@ -270,6 +288,7 @@ duplicates; metric denominators are tested against hand-computed values.
 - [Threat model](docs/threat-model.md)
 - [Benchmark method](docs/benchmark.md)
 - [Developer runbook](docs/developer-runbook.md)
+- [Deploying](docs/deploy.md): free static showcase, or the full app in one container
 - [UX redesign](docs/design/flightpath-redesign.md) and [next product ideas](docs/design/flightpath-next.md)
 - [ADR-001: core stack](docs/decisions/ADR-001-core-stack.md)
 

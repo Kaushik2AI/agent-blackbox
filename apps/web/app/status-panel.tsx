@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { SHOWCASE } from "@/lib/showcase";
 import { checkConnectivity, type CheckResult, type ConnectivityState } from "@/lib/api";
 
 const POLL_MS = 5000;
@@ -99,8 +100,14 @@ export function StatusPanel() {
               value={state.health.environment}
               detail={`${state.health.service} answered /healthz`}
             />
-            {checkRow("PostgreSQL", state.readiness.checks.database)}
-            {checkRow("Redis", state.readiness.checks.redis)}
+            {SHOWCASE ? (
+              checkRow("Snapshot", state.readiness.checks.snapshot)
+            ) : (
+              <>
+                {checkRow("PostgreSQL", state.readiness.checks.database)}
+                {checkRow("Redis", state.readiness.checks.redis)}
+              </>
+            )}
           </>
         )}
       </ul>

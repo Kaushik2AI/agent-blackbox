@@ -11,6 +11,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from agent_harness.freshness import age_days, is_stale
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -61,6 +62,22 @@ def suggest_fix(session: Session, execution_id: uuid.UUID) -> dict[str, Any]:
 
     plan: dict[str, Any] | None = None
     for i, step in enumerate(steps):
+        output = step["output"] if isinstance(step["output"], dict) else {}
+        as_of = output.get("as_of")
+        if step["ok"] and step["tool"] == "lookup_inventory" and isinstance(as_of, str):
+            if is_stale(as_of):
+                plan = {
+                    "step": step,
+                    "type": "replace_tool_result",
+                    "value": None,  # the current record, from the checkpoint's sandbox
+                    "stale_as_of": as_of,
+                    "label": "Use the current stock record",
+                    "explanation": (
+                        f"The stock check answered from a record {round(age_days(as_of))} days "
+                        "old. Re-run with the current record instead of the cached one."
+                    ),
+                }
+                break
         if not step["ok"]:
             code = step["error_code"]
             recovered = any(s["ok"] and s["tool"] == step["tool"] for s in steps[i + 1 :])
@@ -144,6 +161,8 @@ def suggest_fix(session: Session, execution_id: uuid.UUID) -> dict[str, Any]:
         args = step["args"]
         if step["tool"] == "lookup_inventory" and args.get("sku") in world["inventory"]:
             value = {"sku": args["sku"], **world["inventory"][args["sku"]]}
+            if plan.get("stale_as_of") and value.get("as_of") == plan["stale_as_of"]:
+                return _none("No one-click fix: the sandbox has no newer stock record.")
         elif step["tool"] == "lookup_order" and args.get("order_id") in world["orders"]:
             value = {"order_id": args["order_id"], **world["orders"][args["order_id"]]}
         else:

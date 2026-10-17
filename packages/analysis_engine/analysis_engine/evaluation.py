@@ -128,8 +128,9 @@ def main(argv: list[str] | None = None) -> int:
         f"micro recall {_fmt(report.micro_recall)}"
     )
     print(
-        "Caveat: 6 hand-labelled fixtures written by the same team as the detectors; no "
-        "held-out set yet (M8). Treat as a regression check, not a generalisation claim."
+        f"Caveat: {report.fixtures} hand-labelled demo fixtures written by the same team as "
+        "the detectors. Treat as a regression check; the benchmark (make benchmark) has the "
+        "held-out split."
     )
     if args.out:
         with open(args.out, "w", encoding="utf-8") as fh:

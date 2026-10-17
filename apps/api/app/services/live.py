@@ -70,6 +70,13 @@ SCENARIOS: tuple[Scenario, ...] = (
         ("llm", "scripted"),
     ),
     Scenario(
+        "stale_stock",
+        "stale_inventory_record",
+        "Stock record is out of date",
+        "The stock check answers from an old cached record that says 'sold out'.",
+        ("llm", "scripted"),
+    ),
+    Scenario(
         "bug_wrong_input",
         "invalid_inventory_argument",
         "Agent bug: wrong input",

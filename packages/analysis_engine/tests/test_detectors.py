@@ -109,10 +109,10 @@ def test_metric_math() -> None:
 def test_evaluation_is_reproducible_and_meets_regression_floor() -> None:
     a, b = evaluate(), evaluate()
     assert a.model_dump() == b.model_dump()
-    assert a.fixtures == 6
+    assert a.fixtures == 7
     # Regression floor, not a claim about unseen data (see the evaluation caveat).
     labelled = [c for c in a.per_category if c.tp + c.fn]
-    assert len(labelled) == 5  # repeated_action has no demo fixture; real models hit it
+    assert len(labelled) == 6  # repeated_action has no demo fixture; real models hit it
     assert all(c.recall == 1.0 and c.precision == 1.0 for c in labelled)
     assert all(c.fp == 0 for c in a.per_category)
 

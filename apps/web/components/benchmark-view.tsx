@@ -174,7 +174,7 @@ function Notes({ b }: { b: EvalBlock }) {
     <Card title="How to read this">
       <ul className="space-y-2 px-4 py-3 text-[14px] leading-5 text-fg-2">
         <li><span className="text-fg">Controls.</span> A change only counts if it beats both a random change ({pct(b.random_recovery)}) and restarting with nothing changed ({pct(b.no_change_recovery)}).</li>
-        <li><span className="text-fg">Coverage.</span> FlightPath proposed a change for {frac(b.repair_coverage)} failed runs. The rest (for example stale data, which no detector catches yet) count as not recovered.</li>
+        <li><span className="text-fg">Coverage.</span> FlightPath proposed a change for {frac(b.repair_coverage)} failed runs.{b.repair_coverage.k < b.repair_coverage.n ? " The rest, where no detector or repair rule applied, count as not recovered." : ""}</li>
         <li><span className="text-fg">False benefit.</span> {b.false_benefit.n ? `${b.false_benefit.k} of ${b.false_benefit.n} recoveries would have happened without the change.` : "No recoveries to check."}</li>
         <li><span className="text-fg">Honesty.</span> Cases are synthetic and the rules were written by the same team. The held-out split was not used to write them. With the scripted agent each run is exact; real-model runs repeat each case with several seeds.</li>
       </ul>

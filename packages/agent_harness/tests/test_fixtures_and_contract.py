@@ -17,7 +17,9 @@ def test_fixtures_are_versioned_and_hashable() -> None:
 
 def test_fixture_faults_only_target_allowlisted_tools() -> None:
     for fid in list_fixtures():
-        assert set(load_fixture(fid).faults) <= set(TOOLS)
+        # "stale:<tool>" serves an outdated record instead of a timeout; same allowlist.
+        targets = {k.removeprefix("stale:") for k in load_fixture(fid).faults}
+        assert targets <= set(TOOLS)
 
 
 def test_committed_contract_matches_code() -> None:

@@ -177,6 +177,7 @@ def test_model_outage_is_reported_not_crashed(
         ("bug_wrong_input", "replace_tool_argument", "SKU-RED-004"),
         ("stock_down", "replace_tool_result", "Pretend"),
         ("bug_wrong_order", "replace_tool_argument", "ORD-1001"),
+        ("stale_stock", "replace_tool_result", "current stock record"),
     ],
 )
 def test_suggested_fix_turns_the_failure_into_a_pass(

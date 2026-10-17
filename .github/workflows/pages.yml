@@ -1,0 +1,119 @@
+name: Showcase (GitHub Pages)
+
+# Builds the free, read-only showcase after CI passes on main, and publishes it to
+# https://<owner>.github.io/<repo>/. It starts the real stack, records the demo runs, plays
+# every scripted scenario, applies FlightPath's suggested fix to every failed run, freezes
+# all of it into static JSON (infra/showcase/snapshot.py) and exports the web app.
+#
+# One-time setup: repository Settings -> Pages -> Build and deployment -> Source:
+# "GitHub Actions".
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  ENVIRONMENT: test
+  DATABASE_URL: postgresql+psycopg://blackbox:ci-password@127.0.0.1:5432/blackbox
+  REDIS_URL: redis://127.0.0.1:6379/0
+  API_INTERNAL_URL: http://127.0.0.1:8000
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: blackbox
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: blackbox
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U blackbox" --health-interval 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 3s --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/api/pyproject.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install
+        run: |
+          python -m pip install -e apps/api -e packages/agent_harness -e packages/blackbox_sdk -e packages/analysis_engine -e packages/evaluation
+          cd apps/web && npm ci --no-audit --no-fund
+
+      - name: Start the stack and load the demo runs and benchmark results
+        run: |
+          (cd apps/api && python -m alembic upgrade head)
+          (cd apps/api && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &)
+          (cd apps/api && python -m rq.cli worker --url "$REDIS_URL" blackbox-default &)
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8000/readyz >/dev/null && break; sleep 1; done
+          python -m blackbox_sdk.seed_demo --capture-content
+          python -m blackbox_sdk.seed_demo --fixtures invalid_inventory_argument
+          python -m evaluation.benchmark run --out artifacts/showcase-bench --traces >/dev/null
+          (cd apps/api && python -m app.eval_import ../../artifacts/showcase-bench)
+          for d in benchmark-results/benchmark_v1/*/; do
+            case "$d" in */scripted/) continue ;; esac
+            if [ -f "$d/runs.jsonl" ]; then (cd apps/api && python -m app.eval_import "../../$d"); fi
+          done
+
+      - name: Snapshot and static export
+        env:
+          PAGES_BASE_PATH: /${{ github.event.repository.name }}
+        run: |
+          python infra/showcase/snapshot.py --api http://127.0.0.1:8000 --out apps/web/public/snapshot
+          cd apps/web && NEXT_PUBLIC_SHOWCASE=1 npx next build --webpack
+
+      - name: Browser check of the static site
+        env:
+          PAGES_BASE_PATH: /${{ github.event.repository.name }}
+          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
+        run: |
+          cd apps/web && npx playwright install --with-deps chromium && cd "$GITHUB_WORKSPACE"
+          bash infra/showcase/test.sh
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

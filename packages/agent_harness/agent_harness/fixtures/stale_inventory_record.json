@@ -1,0 +1,67 @@
+{
+  "fixture_id": "stale_inventory_record",
+  "fixture_version": "1.0.0",
+  "description": "Stale retrieval: the stock check serves a cached record from August that says out of stock, while the item is back in stock. The agent refunds instead of exchanging.",
+  "task": {
+    "customer_id": "C-17",
+    "order_id": "ORD-1001",
+    "request": "exchange",
+    "message": "The strap on my red backpack snapped after a week. Can I swap it for a new one?"
+  },
+  "world": {
+    "orders": {
+      "ORD-1001": {
+        "customer_id": "C-17",
+        "sku": "SKU-RED-004",
+        "product_name": "red backpack",
+        "shipping_status": "delivered"
+      }
+    },
+    "inventory": {
+      "SKU-RED-004": {
+        "available": true,
+        "quantity": 12,
+        "as_of": "2026-10-01T09:00:00Z"
+      }
+    },
+    "policies": {
+      "exchange": {
+        "text": "Delivered items may be exchanged for the same SKU within 30 days if in stock.",
+        "version": "2026-09"
+      },
+      "refund": {
+        "text": "If an exchange is not possible, a full refund is issued within 30 days of delivery.",
+        "version": "2026-09"
+      }
+    },
+    "stale_inventory": {
+      "SKU-RED-004": {
+        "available": false,
+        "quantity": 0,
+        "as_of": "2026-08-12T09:00:00Z"
+      }
+    }
+  },
+  "faults": {
+    "stale:lookup_inventory": 1
+  },
+  "model": {
+    "inventory_argument": "sku",
+    "max_retries_on_timeout": 2
+  },
+  "budget": {
+    "max_tool_calls": 8
+  },
+  "ground_truth": {
+    "resolution": {
+      "order_id": "ORD-1001",
+      "choice": "exchange"
+    },
+    "draft_customer_id": "C-17"
+  },
+  "expected_baseline": {
+    "verifier_passed": false,
+    "termination": "completed",
+    "error_codes": []
+  }
+}

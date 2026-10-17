@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { checkConnectivity } from "@/lib/api";
+import { SHOWCASE } from "@/lib/showcase";
 import { href } from "@/lib/format";
 import { useViewMode } from "@/lib/view-mode";
 import { Segmented } from "./ui";
@@ -74,7 +75,7 @@ function StatusDot() {
       clearInterval(t);
     };
   }, []);
-  const label = { checking: "Checking", ready: "Online", degraded: "Degraded", down: "Offline" }[state];
+  const label = { checking: "Checking", ready: SHOWCASE ? "Snapshot" : "Online", degraded: "Degraded", down: "Offline" }[state];
   const color = { checking: "bg-fg-3", ready: "bg-ok", degraded: "bg-warn", down: "bg-bad" }[state];
   return (
     <a href={href("/system")} className="flex items-center gap-2 text-[13.5px] text-fg-2 hover:text-fg" title="System status">

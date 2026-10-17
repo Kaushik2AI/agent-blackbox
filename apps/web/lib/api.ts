@@ -6,6 +6,8 @@
  * placeholder data.
  */
 
+import { SHOWCASE, ShowcaseError, showcaseGet, showcasePost, snapshotUrl } from "./showcase";
+
 // ------------------------------------------------------------------ health (M1)
 export type CheckResult = { ok: boolean; latency_ms: number; detail: string };
 
@@ -66,6 +68,11 @@ export async function checkConnectivity(
   timeoutMs = 5000,
 ): Promise<ConnectivityState> {
   const checkedAt = new Date();
+  if (SHOWCASE) {
+    const health = await showcaseGet<Health>("/healthz");
+    const readiness = await showcaseGet<Readiness>("/readyz");
+    return { kind: "ready", health, readiness, checkedAt };
+  }
   try {
     const health = await getJson(fetchImpl, `${base}/healthz`, timeoutMs);
     if (health.status !== 200 || !isHealth(health.body)) {
@@ -217,6 +224,14 @@ export async function apiGet<T>(
   base: string = backendBase(),
   timeoutMs = 10000,
 ): Promise<T> {
+  if (SHOWCASE) {
+    try {
+      return await showcaseGet<T>(path, params);
+    } catch (err) {
+      if (err instanceof ShowcaseError) throw new ApiError(err.status, err.message);
+      throw new ApiError(null, `Could not load the showcase data: ${describeError(err, timeoutMs)}`);
+    }
+  }
   const query = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
@@ -367,6 +382,14 @@ export type Comparison = {
 };
 
 export async function apiPost<T>(path: string, body: unknown, base: string = backendBase()): Promise<{ status: number; data: T }> {
+  if (SHOWCASE) {
+    try {
+      return await showcasePost<T>(path, body);
+    } catch (err) {
+      if (err instanceof ShowcaseError) throw new ApiError(err.status, err.message);
+      throw err;
+    }
+  }
   let res: Response;
   try {
     res = await fetch(`${base}${path}`, {
@@ -556,5 +579,6 @@ export type EvalSummary = {
 export const evalApi = {
   sources: () => apiGet<EvalSource[]>("/api/v1/evaluations"),
   summary: (source: string) => apiGet<EvalSummary>(`/api/v1/evaluations/${source}`),
-  csvUrl: (source: string) => `${backendBase()}/api/v1/evaluations/${source}/runs.csv`,
+  csvUrl: (source: string) =>
+    SHOWCASE ? snapshotUrl(`evaluations/${source}/runs.csv`) : `${backendBase()}/api/v1/evaluations/${source}/runs.csv`,
 };

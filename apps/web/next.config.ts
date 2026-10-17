@@ -15,7 +15,24 @@ import type { NextConfig } from "next";
 const apiInternalUrl = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8000";
 const publicPrefix = (process.env.PUBLIC_PATH_PREFIX ?? "").replace(/\/+$/, "");
 
-const nextConfig: NextConfig = {
+/**
+ * NEXT_PUBLIC_SHOWCASE=1: build the read-only showcase as static files (no server, no API)
+ * for GitHub Pages. PAGES_BASE_PATH is where it is served, e.g. /agent-blackbox for
+ * https://<user>.github.io/agent-blackbox/. Data comes from public/snapshot (lib/showcase.ts).
+ */
+const showcaseBase = (process.env.PAGES_BASE_PATH ?? "").replace(/\/+$/, "");
+const showcaseConfig: NextConfig = {
+  output: "export",
+  // Build into out/ (the exported site) instead of .next, so building the showcase never
+  // disturbs a running `make dev`.
+  distDir: "out",
+  basePath: showcaseBase || undefined,
+  trailingSlash: true,
+  images: { unoptimized: true },
+  env: { NEXT_PUBLIC_BASE_PATH: showcaseBase, NEXT_PUBLIC_SHOWCASE: "1" },
+};
+
+const nextConfig: NextConfig = process.env.NEXT_PUBLIC_SHOWCASE === "1" ? showcaseConfig : {
   assetPrefix: publicPrefix || undefined,
   env: { NEXT_PUBLIC_BASE_PATH: publicPrefix },
   async rewrites() {
